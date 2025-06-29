@@ -1,8 +1,12 @@
-cmake_minimum_required(VERSION 3.2)
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED True)
+cmake_minimum_required(VERSION 3.5)
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD_REQUIRED True)
 
 project(AntaEngine VERSION 1.0)
+
 add_executable(AntaEngine
-    src/main.cpp
+    src/main.c
 )
+
+find_package(Vulkan)
+target_link_libraries(AntaEngine PRIVATE Vulkan::Vulkan)
