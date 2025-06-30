@@ -12,25 +12,25 @@ VkInstance create_vulkan_instance(
 
     VkInstance instance;
 
-    VkApplicationInfo appInfo;
-    appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.pApplicationName = app_name;
-    appInfo.applicationVersion = app_version;
-    appInfo.pEngineName = engine_name;
-    appInfo.engineVersion = engine_version;
-    appInfo.apiVersion = higher_vulkan_api_version;
+    VkApplicationInfo app_info;
+    app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    app_info.pApplicationName = app_name;
+    app_info.applicationVersion = app_version;
+    app_info.pEngineName = engine_name;
+    app_info.engineVersion = engine_version;
+    app_info.apiVersion = higher_vulkan_api_version;
 
-    VkInstanceCreateInfo createInfo;
-    createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    createInfo.enabledExtensionCount = 0;
-    createInfo.enabledLayerCount = 0;
-    createInfo.pNext = NULL;
-    createInfo.pApplicationInfo = NULL;
-    createInfo.flags = 0;
-    createInfo.ppEnabledLayerNames = NULL;
-    createInfo.ppEnabledExtensionNames = NULL;
+    VkInstanceCreateInfo create_info;
+    create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    create_info.enabledExtensionCount = 0;
+    create_info.enabledLayerCount = 0;
+    create_info.pNext = NULL;
+    create_info.pApplicationInfo = NULL;
+    create_info.flags = 0;
+    create_info.ppEnabledLayerNames = NULL;
+    create_info.ppEnabledExtensionNames = NULL;
     
-    if (vkCreateInstance(&createInfo, NULL, &instance) != VK_SUCCESS)
+    if (vkCreateInstance(&create_info, NULL, &instance) != VK_SUCCESS)
         return NULL;
 
     return instance;
@@ -61,8 +61,8 @@ VkPhysicalDevice pick_physical_device(VkInstance *vulkan_instance)
 
     uint32_t queue_family_properties_count = 0;
     VkQueueFamilyProperties *queue_family_properties;
-    int is_graphic = 0;
-    int is_transfer = 0;
+    bool is_graphic = false;
+    bool is_transfer = false;
     
     for (uint32_t i = 0; i < physical_devices_count; ++i) {
         vkGetPhysicalDeviceQueueFamilyProperties2(physical_devices[i], &queue_family_properties_count, NULL);
@@ -70,9 +70,9 @@ VkPhysicalDevice pick_physical_device(VkInstance *vulkan_instance)
 
         for (uint32_t i = 0; i < queue_family_properties_count; ++i) {
             if (queue_family_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
-                is_graphic = 1;
+                is_graphic = true;
             if (queue_family_properties[i].queueFlags & VK_QUEUE_TRANSFER_BIT)
-                is_transfer = 1;
+                is_transfer = true;
             if (is_graphic && is_transfer)
                 return physical_devices[i];
         }

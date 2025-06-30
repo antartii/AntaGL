@@ -3,6 +3,7 @@
 
 #include <vulkan/vulkan.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 // ----- INSTANCE -----
 VkInstance create_vulkan_instance(
