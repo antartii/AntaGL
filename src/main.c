@@ -6,6 +6,7 @@
 
 #include "utils.h"
 #include "vulkan_wrapper.h"
+#include "engine.h"
 
 void cleanup(struct engine *engine)
 {
