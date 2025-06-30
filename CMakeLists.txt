@@ -8,6 +8,7 @@ include_directories(includes)
 add_executable(AntaEngine
     src/main.c
     src/utils.c
+    src/vulkan_wrapper.c
 )
 
 find_package(Vulkan)
