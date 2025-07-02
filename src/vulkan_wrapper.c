@@ -1,5 +1,27 @@
 #include "vulkan_wrapper.h"
 
+void error(const char *message, struct engine *engine)
+{
+    cleanup(engine);
+    write(STDERR_FILENO, message, strlen(message));
+    exit(1);
+}
+
+void cleanup(struct engine *engine)
+{
+    if (!engine)
+        return;
+
+    if (engine->device) {
+        if (engine->command_pool) {
+            if (engine->command_buffer) vkFreeCommandBuffers(engine->device, engine->command_pool, engine->command_buffer_count, &engine->command_buffer);
+            vkDestroyCommandPool(engine->device, engine->command_pool, NULL);
+        }
+        vkDestroyDevice(engine->device, NULL);
+    }
+    if (engine->instance) vkDestroyInstance(engine->instance, NULL);
+}
+
 uint32_t get_vulkan_instance_api_version(void)
 {
     uint32_t api_version = VK_API_VERSION_1_0;
@@ -9,12 +31,10 @@ uint32_t get_vulkan_instance_api_version(void)
 
 }
 
-bool create_vulkan_instance(
-    VkInstance *instance,
+void create_vulkan_instance(
+    struct engine *engine,
     const char *app_name,
     uint32_t app_version,
-    const char *engine_name,
-    uint32_t engine_version,
     uint32_t higher_vulkan_api_version)
 {
     if (higher_vulkan_api_version > get_vulkan_instance_api_version())
@@ -24,8 +44,8 @@ bool create_vulkan_instance(
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     app_info.pApplicationName = app_name;
     app_info.applicationVersion = app_version;
-    app_info.pEngineName = engine_name;
-    app_info.engineVersion = engine_version;
+    app_info.pEngineName = engine->name;
+    app_info.engineVersion = engine->version;
     app_info.apiVersion = higher_vulkan_api_version;
 
     VkInstanceCreateInfo create_info;
@@ -38,9 +58,8 @@ bool create_vulkan_instance(
     create_info.ppEnabledLayerNames = NULL;
     create_info.ppEnabledExtensionNames = NULL;
     
-    if (vkCreateInstance(&create_info, NULL, instance) != VK_SUCCESS)
-        return false;
-    return true;
+    if (vkCreateInstance(&create_info, NULL, &engine->instance) != VK_SUCCESS)
+        error("Couldn't create a vulkan instance\n", engine);
 }
 
 VkPhysicalDevice *get_physical_devices(VkInstance vulkan_instance, uint32_t *physical_devices_count)
@@ -73,9 +92,9 @@ VkPhysicalDevice pick_physical_device(VkInstance vulkan_instance)
     
     for (uint32_t i = 0; i < physical_devices_count; ++i) {
         queue_family_properties = get_queue_family_properties(physical_devices[i], &queue_family_properties_count);
-        struct queue_family queue_family = pick_queue_family(queue_family_properties, queue_family_properties_count);
+        struct queue_family_indices queue_family_indices = pick_queue_family(queue_family_properties, queue_family_properties_count);
         free(queue_family_properties);
-        if (queue_family.has_graphic && queue_family.has_transfer) {
+        if (queue_family_indices.graphic >= 0 && queue_family_indices.transfer >= 0) {
             picked_device = physical_devices[i];
             break;
         }
@@ -95,38 +114,65 @@ VkQueueFamilyProperties2 *get_queue_family_properties(VkPhysicalDevice physical_
     return queue_family_properties;
 }
 
-struct queue_family pick_queue_family(VkQueueFamilyProperties2 *queue_family_properties, uint32_t queue_family_properties_count)
+struct queue_family_indices pick_queue_family(VkQueueFamilyProperties2 *queue_family_properties, uint32_t queue_family_properties_count)
 {
-    struct queue_family queue_family = {
-        .index = 0,
-        .has_graphic = false,
-        .has_transfer = false
+    struct queue_family_indices queue_family_indices = {
+        .graphic = -1,
+        .transfer = -1
     };
 
     for (uint32_t i = 0; i < queue_family_properties_count; ++i) {
-        queue_family.index = i;
-        queue_family.has_graphic = queue_family_properties[i].queueFamilyProperties.queueFlags & VK_QUEUE_GRAPHICS_BIT;
-        queue_family.has_transfer = queue_family_properties[i].queueFamilyProperties.queueFlags & VK_QUEUE_TRANSFER_BIT;
-        if (queue_family.has_graphic && queue_family.has_transfer)
+        if (queue_family_properties[i].queueFamilyProperties.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+            queue_family_indices.graphic = i;
+        if (queue_family_properties[i].queueFamilyProperties.queueFlags & VK_QUEUE_TRANSFER_BIT)
+            queue_family_indices.transfer = i;
+        if (queue_family_indices.graphic >= 0 && queue_family_indices.transfer >= 0)
             break;
     }
 
-    return queue_family;
+    return queue_family_indices;
 }
 
-bool create_device(VkPhysicalDevice physical_device, VkDevice *device)
+void create_command_buffers(struct engine *engine)
+{
+    uint32_t queue_family_properties_count;
+    VkQueueFamilyProperties2 *queue_family_properties = get_queue_family_properties(engine->physical_device, &queue_family_properties_count);
+    struct queue_family_indices queue_family_indices = pick_queue_family(queue_family_properties, queue_family_properties_count);
+    free(queue_family_properties);
+
+    VkCommandPoolCreateInfo command_pool_create_info;
+    command_pool_create_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    command_pool_create_info.pNext = NULL;
+    command_pool_create_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    command_pool_create_info.queueFamilyIndex = queue_family_indices.graphic;
+
+    if (vkCreateCommandPool(engine->device, &command_pool_create_info, NULL, &engine->command_pool) != VK_SUCCESS)
+        error("Couldn't create command pool\n", engine);
+
+    VkCommandBufferAllocateInfo command_buffer_info;
+    command_buffer_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    command_buffer_info.pNext = NULL;
+    command_buffer_info.commandPool = engine->command_pool;
+    command_buffer_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    command_buffer_info.commandBufferCount = (uint32_t) MAX_FRAMES_IN_FLIGHT;
+
+    if (vkAllocateCommandBuffers(engine->device, &command_buffer_info, &engine->command_buffer) != VK_SUCCESS)
+        error("Couldn't allocate the command buffer\n", engine);
+}
+
+void create_device(struct engine *engine)
 {
     float queue_family_priority = 1.0f;
     uint32_t queue_family_properties_count;
-    VkQueueFamilyProperties2 *queue_family_properties = get_queue_family_properties(physical_device, &queue_family_properties_count);
-    struct queue_family queue_family = pick_queue_family(queue_family_properties, queue_family_properties_count);
+    VkQueueFamilyProperties2 *queue_family_properties = get_queue_family_properties(engine->physical_device, &queue_family_properties_count);
+    struct queue_family_indices queue_family_indices = pick_queue_family(queue_family_properties, queue_family_properties_count);
     free(queue_family_properties);
 
     VkDeviceQueueCreateInfo queue_create_info;
     queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
     queue_create_info.pNext = NULL;
     queue_create_info.flags = 0;
-    queue_create_info.queueFamilyIndex = queue_family.index;
+    queue_create_info.queueFamilyIndex = queue_family_indices.graphic;
     queue_create_info.queueCount = 1;
     queue_create_info.pQueuePriorities = &queue_family_priority;
 
@@ -140,7 +186,6 @@ bool create_device(VkPhysicalDevice physical_device, VkDevice *device)
     device_create_info.ppEnabledExtensionNames = NULL;
     device_create_info.pEnabledFeatures = NULL;
 
-    if (vkCreateDevice(physical_device, &device_create_info, NULL, device) != VK_SUCCESS)
-        return false;
-    return true;
+    if (vkCreateDevice(engine->physical_device, &device_create_info, NULL, &engine->device) != VK_SUCCESS)
+        error("Couldn't create a logical device\n", engine);
 }
