@@ -50,7 +50,10 @@ struct engine {
     VkDevice device; /**< Logical device */
     VkCommandPool command_pool; /**< Command pool for the command buffers */
     uint32_t command_buffer_count; /**< Number of command buffers */
-    VkCommandBuffer command_buffer; /**< Single command buffer allocated (single for now but will be changed later) */
+    VkCommandBuffer *command_buffers; /**< Single command buffer allocated (single for now but will be changed later) */
+    VkQueue graphic_queue; /**< Graphic queue */
+
+    uint32_t current_frame; /**< Current frame */
 
     struct queue_family_indices queue_family_indices; /**< Variables containing the indices of different queue families */
 };
@@ -127,5 +130,13 @@ struct queue_family_indices pick_queue_family(VkQueueFamilyProperties2 *queue_fa
  * @param engine engine structure where the newly vkCommandBuffer and vkCommandPool will be created
  */
 void create_command_buffers(struct engine *engine);
+
+/**
+ * @brief Record the specified command buffer and submit it
+ * 
+ * @param command_buffer Command buffer to submit
+ * @param engine Engine structure used for the operations
+ */
+void record_command_buffer(VkCommandBuffer *command_buffer, struct engine *engine);
 
 #endif

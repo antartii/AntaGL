@@ -7,6 +7,41 @@ void error(const char *message, struct engine *engine)
     exit(1);
 }
 
+void record_command_buffer(VkCommandBuffer *command_buffer, struct engine *engine)
+{
+    VkCommandBufferBeginInfo command_buffer_begin_info;
+    command_buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    command_buffer_begin_info.pNext = NULL;
+    command_buffer_begin_info.flags = 0;
+    command_buffer_begin_info.pInheritanceInfo = NULL;
+
+    if (vkBeginCommandBuffer(*command_buffer, &command_buffer_begin_info) != VK_SUCCESS) {
+        write(1, "Couldn't start the command buffer recording\n", 45);
+        return;
+    }
+
+    // submit things
+
+    if (vkEndCommandBuffer(*command_buffer) != VK_SUCCESS) {
+        write(1, "Couldn't submit command buffer\n", 32);
+        return;
+    }
+
+    VkSubmitInfo submit_info;
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.pNext = NULL;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = command_buffer;
+    submit_info.signalSemaphoreCount = 0;
+    submit_info.pSignalSemaphores = NULL;
+    submit_info.pWaitDstStageMask = NULL;
+    submit_info.pWaitSemaphores = NULL;
+    submit_info.waitSemaphoreCount = 0;
+
+    if (vkQueueSubmit(engine->graphic_queue, 1, &submit_info, VK_NULL_HANDLE) != VK_SUCCESS)
+        write(1, "Couldn't submit the command buffers\n", 37);
+}
+
 void cleanup(struct engine *engine)
 {
     if (!engine)
@@ -14,7 +49,10 @@ void cleanup(struct engine *engine)
 
     if (engine->device) {
         if (engine->command_pool) {
-            if (engine->command_buffer) vkFreeCommandBuffers(engine->device, engine->command_pool, engine->command_buffer_count, &engine->command_buffer);
+            if (engine->command_buffers) {
+                vkFreeCommandBuffers(engine->device, engine->command_pool, engine->command_buffer_count, engine->command_buffers);
+                free (engine->command_buffers);
+            }
             vkDestroyCommandPool(engine->device, engine->command_pool, NULL);
         }
         vkDestroyDevice(engine->device, NULL);
@@ -136,15 +174,12 @@ struct queue_family_indices pick_queue_family(VkQueueFamilyProperties2 *queue_fa
 void create_command_buffers(struct engine *engine)
 {
     uint32_t queue_family_properties_count;
-    VkQueueFamilyProperties2 *queue_family_properties = get_queue_family_properties(engine->physical_device, &queue_family_properties_count);
-    struct queue_family_indices queue_family_indices = pick_queue_family(queue_family_properties, queue_family_properties_count);
-    free(queue_family_properties);
 
     VkCommandPoolCreateInfo command_pool_create_info;
     command_pool_create_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     command_pool_create_info.pNext = NULL;
     command_pool_create_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    command_pool_create_info.queueFamilyIndex = queue_family_indices.graphic;
+    command_pool_create_info.queueFamilyIndex = engine->queue_family_indices.graphic;
 
     if (vkCreateCommandPool(engine->device, &command_pool_create_info, NULL, &engine->command_pool) != VK_SUCCESS)
         error("Couldn't create command pool\n", engine);
@@ -156,7 +191,9 @@ void create_command_buffers(struct engine *engine)
     command_buffer_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     command_buffer_info.commandBufferCount = (uint32_t) MAX_FRAMES_IN_FLIGHT;
 
-    if (vkAllocateCommandBuffers(engine->device, &command_buffer_info, &engine->command_buffer) != VK_SUCCESS)
+    engine->command_buffers = malloc(sizeof(VkCommandBuffer) * MAX_FRAMES_IN_FLIGHT);
+
+    if (vkAllocateCommandBuffers(engine->device, &command_buffer_info, engine->command_buffers) != VK_SUCCESS)
         error("Couldn't allocate the command buffer\n", engine);
 }
 
@@ -165,14 +202,14 @@ void create_device(struct engine *engine)
     float queue_family_priority = 1.0f;
     uint32_t queue_family_properties_count;
     VkQueueFamilyProperties2 *queue_family_properties = get_queue_family_properties(engine->physical_device, &queue_family_properties_count);
-    struct queue_family_indices queue_family_indices = pick_queue_family(queue_family_properties, queue_family_properties_count);
+    engine->queue_family_indices = pick_queue_family(queue_family_properties, queue_family_properties_count);
     free(queue_family_properties);
 
     VkDeviceQueueCreateInfo queue_create_info;
     queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
     queue_create_info.pNext = NULL;
     queue_create_info.flags = 0;
-    queue_create_info.queueFamilyIndex = queue_family_indices.graphic;
+    queue_create_info.queueFamilyIndex = engine->queue_family_indices.graphic;
     queue_create_info.queueCount = 1;
     queue_create_info.pQueuePriorities = &queue_family_priority;
 
@@ -188,4 +225,15 @@ void create_device(struct engine *engine)
 
     if (vkCreateDevice(engine->physical_device, &device_create_info, NULL, &engine->device) != VK_SUCCESS)
         error("Couldn't create a logical device\n", engine);
+
+    /*
+    VkDeviceQueueInfo2 graphic_queue_info;
+    graphic_queue_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_INFO_2;
+    graphic_queue_info.pNext = NULL;
+    graphic_queue_info.flags = 0;
+    graphic_queue_info.queueIndex = 0;
+    graphic_queue_info.queueFamilyIndex = queue_family_indices.graphic;
+    */
+
+    vkGetDeviceQueue(engine->device, engine->queue_family_indices.graphic, 0, &engine->graphic_queue);
 }

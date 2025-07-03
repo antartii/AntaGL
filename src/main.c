@@ -18,7 +18,8 @@ int main(const int argc, const char **argv, const char **env)
         .device = NULL,
         .command_pool = NULL,
         .command_buffer_count = 1,
-        .command_buffer = NULL,
+        .command_buffers = NULL,
+        .current_frame = 0,
 
         .queue_family_indices = {
             .graphic = -1,
@@ -31,6 +32,8 @@ int main(const int argc, const char **argv, const char **env)
         error("Couldn't pick a physical device\n", &engine);
     create_device(&engine);
     create_command_buffers(&engine);
+
+    record_command_buffer(&engine.command_buffers[engine.current_frame], &engine);
 
     cleanup(&engine);
     return 0;
