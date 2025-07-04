@@ -42,8 +42,8 @@ VkQueueFamilyProperties2 *get_queue_family_properties(VkPhysicalDevice physical_
  * 
  */
 struct engine {
-    const uint32_t version; /**< Developper-supplied version of the engine encoded following the vulkan version's encoding */
-    const char *name; /**< Developper-supplied name of the engine */
+    uint32_t version; /**< Developper-supplied version of the engine encoded following the vulkan version's encoding */
+    char *name; /**< Developper-supplied name of the engine */
 
     VkInstance instance; /**< Vulkan instance */
     VkPhysicalDevice physical_device; /**< Physical device */
@@ -51,7 +51,11 @@ struct engine {
     VkCommandPool command_pool; /**< Command pool for the command buffers */
     uint32_t command_buffer_count; /**< Number of command buffers */
     VkCommandBuffer *command_buffers; /**< Single command buffer allocated (single for now but will be changed later) */
+    VkFence *fences;
+    VkSemaphore *render_ready_semaphores;
+    VkSemaphore *render_finished_semaphores;
     VkQueue graphic_queue; /**< Graphic queue */
+    VkQueue present_queue; /**< Present queue */
 
     uint32_t current_frame; /**< Current frame */
 
@@ -72,6 +76,8 @@ void error(const char *message, struct engine *engine);
  * @param engine Engine structure to destroy
  */
 void cleanup(struct engine *engine);
+
+void draw_frame(struct engine *engine);
 
 // ----- INSTANCE -----
 
@@ -138,5 +144,8 @@ void create_command_buffers(struct engine *engine);
  * @param engine Engine structure used for the operations
  */
 void record_command_buffer(VkCommandBuffer *command_buffer, struct engine *engine);
+
+// ----- SYNCHRONIZATION AND CACHE CONTROL -----
+void create_sync_objects(struct engine *engine);
 
 #endif

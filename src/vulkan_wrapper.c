@@ -7,6 +7,33 @@ void error(const char *message, struct engine *engine)
     exit(1);
 }
 
+void draw_frame(struct engine *engine)
+{
+    vkWaitForFences(engine->device, 1, &engine->fences[engine->current_frame], VK_TRUE, UINT64_MAX);
+
+    vkResetFences(engine->device, 1, &engine->fences[engine->current_frame]);
+    vkResetCommandBuffer(engine->command_buffers[engine->current_frame], 0);
+    record_command_buffer(&engine->command_buffers[engine->current_frame], engine);
+
+    VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+    VkSubmitInfo submit_info;
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.pNext = NULL;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &engine->command_buffers[engine->current_frame];
+    submit_info.signalSemaphoreCount = 1;
+    submit_info.pSignalSemaphores = &engine->render_ready_semaphores[engine->current_frame];
+    submit_info.pWaitDstStageMask = &wait_stage;
+    submit_info.pWaitSemaphores = &engine->render_finished_semaphores[engine->current_frame];
+    submit_info.waitSemaphoreCount = 1;
+
+    if (vkQueueSubmit(engine->graphic_queue, 1, &submit_info, VK_NULL_HANDLE) != VK_SUCCESS)
+        write(1, "Couldn't submit the command buffers\n", 37);
+
+    engine->current_frame = (engine->current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
+}
+
 void record_command_buffer(VkCommandBuffer *command_buffer, struct engine *engine)
 {
     VkCommandBufferBeginInfo command_buffer_begin_info;
@@ -26,20 +53,6 @@ void record_command_buffer(VkCommandBuffer *command_buffer, struct engine *engin
         write(1, "Couldn't submit command buffer\n", 32);
         return;
     }
-
-    VkSubmitInfo submit_info;
-    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submit_info.pNext = NULL;
-    submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = command_buffer;
-    submit_info.signalSemaphoreCount = 0;
-    submit_info.pSignalSemaphores = NULL;
-    submit_info.pWaitDstStageMask = NULL;
-    submit_info.pWaitSemaphores = NULL;
-    submit_info.waitSemaphoreCount = 0;
-
-    if (vkQueueSubmit(engine->graphic_queue, 1, &submit_info, VK_NULL_HANDLE) != VK_SUCCESS)
-        write(1, "Couldn't submit the command buffers\n", 37);
 }
 
 void cleanup(struct engine *engine)
@@ -48,12 +61,18 @@ void cleanup(struct engine *engine)
         return;
 
     if (engine->device) {
+        vkDeviceWaitIdle(engine->device);
         if (engine->command_pool) {
             if (engine->command_buffers) {
                 vkFreeCommandBuffers(engine->device, engine->command_pool, engine->command_buffer_count, engine->command_buffers);
                 free (engine->command_buffers);
             }
             vkDestroyCommandPool(engine->device, engine->command_pool, NULL);
+        }
+        if (engine->fences) {
+            for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+                vkDestroyFence(engine->device, engine->fences[i], NULL);
+            free(engine->fences);
         }
         vkDestroyDevice(engine->device, NULL);
     }
@@ -114,6 +133,30 @@ VkPhysicalDevice *get_physical_devices(VkInstance vulkan_instance, uint32_t *phy
     else if (result != VK_SUCCESS)
         return NULL;
     return physical_devices;
+}
+
+void create_sync_objects(struct engine *engine)
+{
+    VkSemaphoreCreateInfo semaphore_create_info = {0};
+    semaphore_create_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    semaphore_create_info.pNext = NULL;
+    semaphore_create_info.flags = 0;
+
+    VkFenceCreateInfo fence_create_info = {0};
+    fence_create_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fence_create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+    fence_create_info.pNext = NULL;
+
+    engine->fences = malloc(sizeof(VkFence) * MAX_FRAMES_IN_FLIGHT);
+    engine->render_finished_semaphores = malloc(sizeof(VkSemaphore) * MAX_FRAMES_IN_FLIGHT);
+    engine->render_ready_semaphores = malloc(sizeof(VkSemaphore) * MAX_FRAMES_IN_FLIGHT);
+
+    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+        if (vkCreateSemaphore(engine->device, &semaphore_create_info, NULL, &engine->render_finished_semaphores[i]) != VK_SUCCESS ||
+            vkCreateSemaphore(engine->device, &semaphore_create_info, NULL, &engine->render_ready_semaphores[i]) != VK_SUCCESS ||
+            vkCreateFence(engine->device, &fence_create_info, NULL, &engine->fences[i]) != VK_SUCCESS)
+            error("Couldn't create synchronysations objects\n", engine);
+    }
 }
 
 VkPhysicalDevice pick_physical_device(VkInstance vulkan_instance)
