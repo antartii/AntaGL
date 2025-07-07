@@ -47,7 +47,13 @@ void record_command_buffer(VkCommandBuffer *command_buffer, struct engine *engin
         return;
     }
 
-    // submit things
+    VkRenderingInfo rendering_info = {0};
+    rendering_info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+    rendering_info.pNext = NULL;
+    rendering_info.flags = 0;
+    /*rendering_info.renderArea.extent = ???;
+
+    vkCmdBeginRendering(*command_buffer, );*/
 
     if (vkEndCommandBuffer(*command_buffer) != VK_SUCCESS) {
         write(1, "Couldn't submit command buffer\n", 32);
@@ -234,6 +240,7 @@ void create_command_buffers(struct engine *engine)
     command_buffer_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     command_buffer_info.commandBufferCount = (uint32_t) MAX_FRAMES_IN_FLIGHT;
 
+    engine->command_buffer_count = MAX_FRAMES_IN_FLIGHT;
     engine->command_buffers = malloc(sizeof(VkCommandBuffer) * MAX_FRAMES_IN_FLIGHT);
 
     if (vkAllocateCommandBuffers(engine->device, &command_buffer_info, engine->command_buffers) != VK_SUCCESS)

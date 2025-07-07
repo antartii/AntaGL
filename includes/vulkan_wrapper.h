@@ -58,6 +58,8 @@ struct engine {
     VkQueue present_queue; /**< Present queue */
 
     uint32_t current_frame; /**< Current frame */
+    VkRect2D swapchain_extent;
+    VkSurfaceKHR surface;
 
     struct queue_family_indices queue_family_indices; /**< Variables containing the indices of different queue families */
 };
