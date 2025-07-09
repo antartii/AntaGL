@@ -40,6 +40,10 @@ void test_wayland()
     if (!init_wayland(&win))
         exit(1);
 
+    while (wl_display_dispatch(win.display) != -1) {
+        
+    }
+
     end_wayland(&win);
 }
 
