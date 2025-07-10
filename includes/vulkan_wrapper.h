@@ -8,6 +8,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "window.h"
+
+// for wayland
+#include <vulkan/vulkan_wayland.h>
+
 #define MAX_FRAMES_IN_FLIGHT 2
 
 // ----- QUEUES -----
@@ -44,6 +49,8 @@ VkQueueFamilyProperties2 *get_queue_family_properties(VkPhysicalDevice physical_
 struct engine {
     uint32_t version; /**< Developper-supplied version of the engine encoded following the vulkan version's encoding */
     char *name; /**< Developper-supplied name of the engine */
+    struct window *window;
+    VkSurfaceKHR surface;
 
     VkInstance instance; /**< Vulkan instance */
     VkPhysicalDevice physical_device; /**< Physical device */
@@ -59,7 +66,6 @@ struct engine {
 
     uint32_t current_frame; /**< Current frame */
     VkRect2D swapchain_extent;
-    VkSurfaceKHR surface;
 
     struct queue_family_indices queue_family_indices; /**< Variables containing the indices of different queue families */
 };
@@ -149,5 +155,8 @@ void record_command_buffer(VkCommandBuffer *command_buffer, struct engine *engin
 
 // ----- SYNCHRONIZATION AND CACHE CONTROL -----
 void create_sync_objects(struct engine *engine);
+
+// ----- INIT -----
+void init_vulkan(struct engine *engine);
 
 #endif

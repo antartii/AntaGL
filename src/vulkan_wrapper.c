@@ -7,6 +7,20 @@ void error(const char *message, struct engine *engine)
     exit(1);
 }
 
+void create_surface(struct engine *engine)
+{
+    VkWaylandSurfaceCreateInfoKHR surfaceCreateInfo= {
+        .sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
+        .display = engine->window->display,
+        .surface = engine->window->surface,
+        .pNext = NULL,
+        .flags = 0
+    };
+
+    if (vkCreateWaylandSurfaceKHR(engine->instance, &surfaceCreateInfo, NULL, &engine->surface) != VK_SUCCESS)
+        error("Couldn't create wayland surface", engine);
+}
+
 void draw_frame(struct engine *engine)
 {
     vkWaitForFences(engine->device, 1, &engine->fences[engine->current_frame], VK_TRUE, UINT64_MAX);
@@ -51,9 +65,10 @@ void record_command_buffer(VkCommandBuffer *command_buffer, struct engine *engin
     rendering_info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
     rendering_info.pNext = NULL;
     rendering_info.flags = 0;
-    /*rendering_info.renderArea.extent = ???;
+    //rendering_info.renderArea.extent = {engine->window->width, engine->window->height};
+    //rendering_info.renderArea.offset = {0, 0};
 
-    vkCmdBeginRendering(*command_buffer, );*/
+    // vkCmdBeginRendering(*command_buffer, );
 
     if (vkEndCommandBuffer(*command_buffer) != VK_SUCCESS) {
         write(1, "Couldn't submit command buffer\n", 32);
@@ -111,15 +126,23 @@ void create_vulkan_instance(
     app_info.engineVersion = engine->version;
     app_info.apiVersion = higher_vulkan_api_version;
 
+    const char *extensions[] = {
+        // for wayland
+        "VK_KHR_surface",
+        "VK_KHR_wayland_surface"
+    };
+
+    const int extensions_count = 2;
+
     VkInstanceCreateInfo create_info;
     create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    create_info.enabledExtensionCount = 0;
+    create_info.enabledExtensionCount = extensions_count;
     create_info.enabledLayerCount = 0;
     create_info.pNext = NULL;
     create_info.pApplicationInfo = NULL;
     create_info.flags = 0;
     create_info.ppEnabledLayerNames = NULL;
-    create_info.ppEnabledExtensionNames = NULL;
+    create_info.ppEnabledExtensionNames = extensions;
     
     if (vkCreateInstance(&create_info, NULL, &engine->instance) != VK_SUCCESS)
         error("Couldn't create a vulkan instance\n", engine);
@@ -286,4 +309,26 @@ void create_device(struct engine *engine)
     */
 
     vkGetDeviceQueue(engine->device, engine->queue_family_indices.graphic, 0, &engine->graphic_queue);
+}
+
+void create_render_pass(struct engine *engine)
+{
+}
+
+void init_vulkan(struct engine *engine)
+{
+    char app_name[11] = "AntaEngine";
+    uint32_t app_version = VK_MAKE_VERSION(1, 0, 0);
+    uint32_t vulkan_api_version = VK_API_VERSION_1_2;
+
+    engine->name = "AntaEngine";
+    engine->version = VK_MAKE_VERSION(1, 0, 0);
+
+    create_vulkan_instance(engine, app_name, app_version, vulkan_api_version);
+    create_surface(engine);
+    if ((engine->physical_device = pick_physical_device(engine->instance)) == NULL)
+        error("Couldn't pick a physical device\n", engine);
+    create_device(engine);
+    create_command_buffers(engine);
+    create_sync_objects(engine);
 }
