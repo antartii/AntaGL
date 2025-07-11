@@ -37,13 +37,13 @@ void draw_frame(struct engine *engine)
     submit_info.commandBufferCount = 1;
     submit_info.pCommandBuffers = &engine->command_buffers[engine->current_frame];
     submit_info.signalSemaphoreCount = 1;
-    submit_info.pSignalSemaphores = &engine->render_ready_semaphores[engine->current_frame];
+    submit_info.pSignalSemaphores = &engine->render_finished_semaphores[engine->current_frame];
     submit_info.pWaitDstStageMask = &wait_stage;
-    submit_info.pWaitSemaphores = &engine->render_finished_semaphores[engine->current_frame];
+    submit_info.pWaitSemaphores = &engine->image_available_semaphores[engine->current_frame];
     submit_info.waitSemaphoreCount = 1;
 
     if (vkQueueSubmit(engine->graphic_queue, 1, &submit_info, VK_NULL_HANDLE) != VK_SUCCESS)
-        write(1, "Couldn't submit the command buffers\n", 37);
+        write(STDERR_FILENO, "Couldn't submit the command buffers\n", 37);
 
     engine->current_frame = (engine->current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
@@ -57,7 +57,7 @@ void record_command_buffer(VkCommandBuffer *command_buffer, struct engine *engin
     command_buffer_begin_info.pInheritanceInfo = NULL;
 
     if (vkBeginCommandBuffer(*command_buffer, &command_buffer_begin_info) != VK_SUCCESS) {
-        write(1, "Couldn't start the command buffer recording\n", 45);
+        write(STDERR_FILENO, "Couldn't start the command buffer recording\n", 45);
         return;
     }
 
@@ -65,13 +65,15 @@ void record_command_buffer(VkCommandBuffer *command_buffer, struct engine *engin
     rendering_info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
     rendering_info.pNext = NULL;
     rendering_info.flags = 0;
-    //rendering_info.renderArea.extent = {engine->window->width, engine->window->height};
-    //rendering_info.renderArea.offset = {0, 0};
+    rendering_info.renderArea.extent.height = engine->window->height;
+    rendering_info.renderArea.extent.width = engine->window->width;
+    rendering_info.renderArea.offset.x = 0;
+    rendering_info.renderArea.offset.y = 0;
 
     // vkCmdBeginRendering(*command_buffer, );
 
     if (vkEndCommandBuffer(*command_buffer) != VK_SUCCESS) {
-        write(1, "Couldn't submit command buffer\n", 32);
+        write(STDERR_FILENO, "Couldn't submit command buffer\n", 32);
         return;
     }
 }
@@ -97,7 +99,10 @@ void cleanup(struct engine *engine)
         }
         vkDestroyDevice(engine->device, NULL);
     }
-    if (engine->instance) vkDestroyInstance(engine->instance, NULL);
+    if (engine->instance) {
+        if (engine->surface) vkDestroySurfaceKHR(engine->instance, engine->surface, NULL);
+        vkDestroyInstance(engine->instance, NULL);
+    }
 }
 
 uint32_t get_vulkan_instance_api_version(void)
@@ -116,7 +121,7 @@ void create_vulkan_instance(
     uint32_t higher_vulkan_api_version)
 {
     if (higher_vulkan_api_version > get_vulkan_instance_api_version())
-        write(STDOUT_FILENO, "Using a lower instance of vulkan api than the higher version requested\n", 72);
+        write(STDERR_FILENO, "Using a lower instance of vulkan api than the higher version requested\n", 72);
 
     VkApplicationInfo app_info;
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -139,7 +144,7 @@ void create_vulkan_instance(
     create_info.enabledExtensionCount = extensions_count;
     create_info.enabledLayerCount = 0;
     create_info.pNext = NULL;
-    create_info.pApplicationInfo = NULL;
+    create_info.pApplicationInfo = &app_info;
     create_info.flags = 0;
     create_info.ppEnabledLayerNames = NULL;
     create_info.ppEnabledExtensionNames = extensions;
@@ -158,7 +163,7 @@ VkPhysicalDevice *get_physical_devices(VkInstance vulkan_instance, uint32_t *phy
     result = vkEnumeratePhysicalDevices(vulkan_instance, physical_devices_count, physical_devices);
 
     if (result == VK_INCOMPLETE)
-        write(STDOUT_FILENO, "The enumeration of physical devices requested is incomplete", 60);
+        write(STDERR_FILENO, "The enumeration of physical devices requested is incomplete", 60);
     else if (result != VK_SUCCESS)
         return NULL;
     return physical_devices;
@@ -178,20 +183,20 @@ void create_sync_objects(struct engine *engine)
 
     engine->fences = malloc(sizeof(VkFence) * MAX_FRAMES_IN_FLIGHT);
     engine->render_finished_semaphores = malloc(sizeof(VkSemaphore) * MAX_FRAMES_IN_FLIGHT);
-    engine->render_ready_semaphores = malloc(sizeof(VkSemaphore) * MAX_FRAMES_IN_FLIGHT);
+    engine->image_available_semaphores = malloc(sizeof(VkSemaphore) * MAX_FRAMES_IN_FLIGHT);
 
     for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
         if (vkCreateSemaphore(engine->device, &semaphore_create_info, NULL, &engine->render_finished_semaphores[i]) != VK_SUCCESS ||
-            vkCreateSemaphore(engine->device, &semaphore_create_info, NULL, &engine->render_ready_semaphores[i]) != VK_SUCCESS ||
+            vkCreateSemaphore(engine->device, &semaphore_create_info, NULL, &engine->image_available_semaphores[i]) != VK_SUCCESS ||
             vkCreateFence(engine->device, &fence_create_info, NULL, &engine->fences[i]) != VK_SUCCESS)
             error("Couldn't create synchronysations objects\n", engine);
     }
 }
 
-VkPhysicalDevice pick_physical_device(VkInstance vulkan_instance)
+VkPhysicalDevice pick_physical_device(struct engine *engine)
 {
     uint32_t physical_devices_count = 0;
-    VkPhysicalDevice *physical_devices = get_physical_devices(vulkan_instance, &physical_devices_count);
+    VkPhysicalDevice *physical_devices = get_physical_devices(engine->instance, &physical_devices_count);
     VkPhysicalDevice picked_device = NULL;
 
     if (physical_devices_count <= 0 || physical_devices == NULL)
@@ -202,14 +207,16 @@ VkPhysicalDevice pick_physical_device(VkInstance vulkan_instance)
     
     for (uint32_t i = 0; i < physical_devices_count; ++i) {
         queue_family_properties = get_queue_family_properties(physical_devices[i], &queue_family_properties_count);
-        struct queue_family_indices queue_family_indices = pick_queue_family(queue_family_properties, queue_family_properties_count);
+        struct queue_family_indices queue_family_indices = pick_queue_family(queue_family_properties, queue_family_properties_count, physical_devices[i], engine);
         free(queue_family_properties);
-        if (queue_family_indices.graphic >= 0 && queue_family_indices.transfer >= 0) {
+        
+        if (queue_family_indices.has_graphic || queue_family_indices.has_transfer || queue_family_indices.has_present) {
             picked_device = physical_devices[i];
             break;
         }
     }
     free(physical_devices);
+
     return picked_device;
 }
 
@@ -219,25 +226,44 @@ VkQueueFamilyProperties2 *get_queue_family_properties(VkPhysicalDevice physical_
 
     vkGetPhysicalDeviceQueueFamilyProperties2(physical_device, queue_family_properties_count, NULL);
     queue_family_properties = malloc(sizeof(VkQueueFamilyProperties2) * *queue_family_properties_count);
+    for (uint32_t i = 0; i < *queue_family_properties_count; ++i) {
+        queue_family_properties[i].sType = VK_STRUCTURE_TYPE_QUEUE_FAMILY_PROPERTIES_2;
+        queue_family_properties[i].pNext = NULL;
+    }
     vkGetPhysicalDeviceQueueFamilyProperties2(physical_device, queue_family_properties_count, queue_family_properties);
 
     return queue_family_properties;
 }
 
-struct queue_family_indices pick_queue_family(VkQueueFamilyProperties2 *queue_family_properties, uint32_t queue_family_properties_count)
+struct queue_family_indices pick_queue_family(VkQueueFamilyProperties2 *queue_family_properties, uint32_t queue_family_properties_count, VkPhysicalDevice physical_device, struct engine *engine)
 {
     struct queue_family_indices queue_family_indices = {
-        .graphic = -1,
-        .transfer = -1
+        .graphic = 0,
+        .transfer = 0,
+        .present = 0,
+
+        .has_graphic = false,
+        .has_present = false,
+        .has_present = false
     };
 
     for (uint32_t i = 0; i < queue_family_properties_count; ++i) {
-        if (queue_family_properties[i].queueFamilyProperties.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+        VkQueueFlags flags = queue_family_properties[i].queueFamilyProperties.queueFlags;
+
+        if ((flags & VK_QUEUE_GRAPHICS_BIT) && !queue_family_indices.has_graphic) {
             queue_family_indices.graphic = i;
-        if (queue_family_properties[i].queueFamilyProperties.queueFlags & VK_QUEUE_TRANSFER_BIT)
+            queue_family_indices.has_graphic = true;
+        }
+        if ((flags & VK_QUEUE_TRANSFER_BIT) && !queue_family_indices.has_transfer) {
             queue_family_indices.transfer = i;
-        if (queue_family_indices.graphic >= 0 && queue_family_indices.transfer >= 0)
-            break;
+            queue_family_indices.has_transfer = true;
+        }
+        // for wayland
+
+        if (vkGetPhysicalDeviceWaylandPresentationSupportKHR(physical_device, i, engine->window->display) != VK_SUCCESS && !queue_family_indices.has_present) {
+            queue_family_indices.present = i;
+            queue_family_indices.has_present = true;
+        }
     }
 
     return queue_family_indices;
@@ -275,30 +301,46 @@ void create_device(struct engine *engine)
     float queue_family_priority = 1.0f;
     uint32_t queue_family_properties_count;
     VkQueueFamilyProperties2 *queue_family_properties = get_queue_family_properties(engine->physical_device, &queue_family_properties_count);
-    engine->queue_family_indices = pick_queue_family(queue_family_properties, queue_family_properties_count);
+    engine->queue_family_indices = pick_queue_family(queue_family_properties, queue_family_properties_count, engine->physical_device, engine);
     free(queue_family_properties);
 
-    VkDeviceQueueCreateInfo queue_create_info;
-    queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queue_create_info.pNext = NULL;
-    queue_create_info.flags = 0;
-    queue_create_info.queueFamilyIndex = engine->queue_family_indices.graphic;
-    queue_create_info.queueCount = 1;
-    queue_create_info.pQueuePriorities = &queue_family_priority;
+    VkDeviceQueueCreateInfo queue_create_infos[2];
+    uint32_t queue_create_info_count = 0;
+
+    // graphic queue
+    queue_create_infos[queue_create_info_count++] = (VkDeviceQueueCreateInfo) {
+        .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+        .pNext = NULL,
+        .flags = 0,
+        .queueFamilyIndex = engine->queue_family_indices.graphic,
+        .queueCount = 1,
+        .pQueuePriorities = &queue_family_priority
+    };
+
+    // present
+    if (engine->queue_family_indices.present != engine->queue_family_indices.graphic) {
+        queue_create_infos[queue_create_info_count++] = (VkDeviceQueueCreateInfo) {
+            .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+            .pNext = NULL,
+            .flags = 0,
+            .queueFamilyIndex = engine->queue_family_indices.present,
+            .queueCount = 1,
+            .pQueuePriorities = &queue_family_priority,
+        };
+    }
 
     VkDeviceCreateInfo device_create_info;
     device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     device_create_info.pNext = NULL;
     device_create_info.flags = 0;
-    device_create_info.queueCreateInfoCount = 1;
-    device_create_info.pQueueCreateInfos = &queue_create_info;
+    device_create_info.queueCreateInfoCount = queue_create_info_count;
+    device_create_info.pQueueCreateInfos = queue_create_infos;
     device_create_info.enabledExtensionCount = 0;
     device_create_info.ppEnabledExtensionNames = NULL;
     device_create_info.pEnabledFeatures = NULL;
 
     if (vkCreateDevice(engine->physical_device, &device_create_info, NULL, &engine->device) != VK_SUCCESS)
         error("Couldn't create a logical device\n", engine);
-
     /*
     VkDeviceQueueInfo2 graphic_queue_info;
     graphic_queue_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_INFO_2;
@@ -309,6 +351,10 @@ void create_device(struct engine *engine)
     */
 
     vkGetDeviceQueue(engine->device, engine->queue_family_indices.graphic, 0, &engine->graphic_queue);
+    if (engine->queue_family_indices.present == engine->queue_family_indices.graphic)
+        engine->present_queue = engine->graphic_queue;
+    else
+        vkGetDeviceQueue(engine->device, engine->queue_family_indices.present, 0, &engine->present_queue);
 }
 
 void create_render_pass(struct engine *engine)
@@ -326,7 +372,7 @@ void init_vulkan(struct engine *engine)
 
     create_vulkan_instance(engine, app_name, app_version, vulkan_api_version);
     create_surface(engine);
-    if ((engine->physical_device = pick_physical_device(engine->instance)) == NULL)
+    if ((engine->physical_device = pick_physical_device(engine)) == NULL)
         error("Couldn't pick a physical device\n", engine);
     create_device(engine);
     create_command_buffers(engine);

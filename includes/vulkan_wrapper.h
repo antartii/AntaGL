@@ -23,6 +23,11 @@
 struct queue_family_indices {
     uint32_t graphic; /**< Index for the queue family with graphic properties  */
     uint32_t transfer; /**< Index for the queue family with transfer properties */
+    uint32_t present;
+
+    bool has_graphic;
+    bool has_transfer;
+    bool has_present;
 };
 
 /**
@@ -59,7 +64,7 @@ struct engine {
     uint32_t command_buffer_count; /**< Number of command buffers */
     VkCommandBuffer *command_buffers; /**< Single command buffer allocated (single for now but will be changed later) */
     VkFence *fences;
-    VkSemaphore *render_ready_semaphores;
+    VkSemaphore *image_available_semaphores;
     VkSemaphore *render_finished_semaphores;
     VkQueue graphic_queue; /**< Graphic queue */
     VkQueue present_queue; /**< Present queue */
@@ -125,7 +130,7 @@ VkPhysicalDevice *get_physical_devices(VkInstance vulkan_instance, uint32_t *phy
  * @param vulkan_instance Instance of vulkan created beforehand
  * @return A VkPhysicalDevice or NULL if no physical devices are suitable
  */
-VkPhysicalDevice pick_physical_device(VkInstance vulkan_instance);
+VkPhysicalDevice pick_physical_device(struct engine *engine);
 
 // ----- LOGICAL DEVICES -----
 
@@ -137,7 +142,7 @@ VkPhysicalDevice pick_physical_device(VkInstance vulkan_instance);
 void create_device(struct engine *engine);
 
 // ----- COMMAND BUFFERS -----
-struct queue_family_indices pick_queue_family(VkQueueFamilyProperties2 *queue_family_properties, uint32_t queue_family_properties_count);
+struct queue_family_indices pick_queue_family(VkQueueFamilyProperties2 *queue_family_properties, uint32_t queue_family_properties_count, VkPhysicalDevice physical_device, struct engine *engine);
 /**
  * @brief Allocate the command buffers and create it's vkCommandPool inside of the engine class
  * 
