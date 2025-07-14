@@ -133,7 +133,7 @@ bool vulkan_create_instance(VkInstance *instance,
         .engineVersion = engine_version,
         .pApplicationName = application_name,
         .applicationVersion = application_version,
-        .apiVersion = VK_API_VERSION_1_0 // for now maybe changing later
+        .apiVersion = VK_API_VERSION_1_3 // for now maybe changing later
     };
 
     uint32_t extensions_count;
@@ -182,6 +182,8 @@ static int vulkan_get_physical_device_suitability_score(VkPhysicalDevice physica
     
     if (properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
         score += 1000;
+    if (properties.apiVersion >= VK_API_VERSION_1_3)
+        score += 10000;
 
     score += properties.limits.maxImageDimension2D;
 
@@ -206,10 +208,12 @@ bool vulkan_pick_physical_device(VkInstance instance, VkPhysicalDevice *physical
         if (physical_devices_score [i] > physical_devices_score [picked_index])
             picked_index = i;
     }
+    bool is_picked_valid = physical_devices_score[picked_index] > 0;
 
-    *physical_device = physical_devices[picked_index];
+    if (is_picked_valid)
+        *physical_device = physical_devices[picked_index];
 
     free(physical_devices);
     free(physical_devices_score);
-    return true;
+    return is_picked_valid;
 }
