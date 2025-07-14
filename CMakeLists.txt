@@ -12,7 +12,7 @@ add_executable(AntaEngine
 
     src/main.c
     src/utils.c
-    src/vulkan_wrapper.c
+    src/engine.c
     src/wayland.c
 )
 

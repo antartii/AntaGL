@@ -37,4 +37,6 @@ struct window
     struct xdg_toplevel *xdg_toplevel;
 };
 
+typedef struct window * window_t;
+
 #endif

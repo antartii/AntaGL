@@ -24,7 +24,7 @@ Header has 2 words:
 
 */
 
-bool init_wayland(struct window *window);
-bool end_wayland(struct window *window);
+bool init_wayland(window_t window);
+bool end_wayland(window_t window);
 
 #endif

@@ -1,31 +1,23 @@
 #include <vulkan/vulkan.h>
 
 #include "utils.h"
-#include "vulkan_wrapper.h"
+#include "engine.h"
 #include "wayland.h"
+
+void run(engine_t engine)
+{
+    // while condition only for wayland
+    while (!engine->window->should_close && wl_display_dispatch(engine->window->display)) {
+        
+    }
+}
 
 int main(const int argc, const char **argv, const char **env)
 {
-    struct window win = {0};
+    engine_t engine = engine_create();
 
-    win.width = 800;
-    win.height = 600;
+    run(engine);
 
-    if (!init_wayland(&win))
-        exit(1);
-
-    struct engine engine = {0};
-    engine.window = &win;
-
-    init_vulkan(&engine);
-
-    /*while (!win.should_close && wl_display_dispatch(win.display) != -1) {
-        
-    }*/
-
-    // draw_frame(&engine);
-    cleanup(&engine);
-
-    end_wayland(&win);
-    return 0;
+    engine_cleanup(engine);
+    return EXIT_SUCCESS;
 }

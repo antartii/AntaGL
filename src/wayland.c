@@ -2,14 +2,14 @@
 
 static void xdg_toplevel_handle_close(void *data, struct xdg_toplevel *xdg_toplevel)
 {
-    struct window *window = data;
+    window_t window = data;
     
     window->should_close = true;
 };
 
 static void xdg_toplevel_handle_configure(void *data, struct xdg_toplevel *xdg_toplevel, int32_t width, int32_t height, struct wl_array *states)
 {
-    struct window *window = data;
+    window_t window = data;
 
     if (width == 0 || height == 0)
         return;
@@ -27,7 +27,7 @@ static const struct xdg_toplevel_listener xdg_toplevel_listener = {
 
 static void xdg_surface_configure(void *data, struct xdg_surface *xdg_surface, uint32_t serial)
 {
-    struct window *window = data;
+    window_t window = data;
 
     xdg_surface_ack_configure(xdg_surface, serial);
 }
@@ -48,7 +48,7 @@ static const struct xdg_wm_base_listener xdg_wm_base_listener = {
 static void registry_handle(void *data, struct wl_registry *registry, uint32_t name, const char *interface, uint32_t version)
 {
     // printf("interface: '%s', version: %d, name: %d\n", interface, version, name);
-    struct window *win = data;
+    window_t win = data;
 
     if (strcmp(interface, wl_compositor_interface.name) == 0) {
         uint32_t compositor_version = version < 4 ? version : 4;
@@ -69,7 +69,7 @@ static const struct wl_registry_listener registry_listener = {
     .global_remove = registry_remove
 };
 
-bool init_wayland(struct window *window)
+bool init_wayland(window_t window)
 {
     window->display = wl_display_connect(NULL);
     if (!window->display) {
@@ -92,7 +92,7 @@ bool init_wayland(struct window *window)
     return true;
 }
 
-bool end_wayland(struct window *window)
+bool end_wayland(window_t window)
 {
     if (window->compositor) wl_compositor_destroy(window->compositor);
     if (window->display) wl_registry_destroy(window->registry);
