@@ -190,6 +190,21 @@ static int vulkan_get_physical_device_suitability_score(VkPhysicalDevice physica
     return score;
 }
 
+static uint32_t vulkan_find_queue_families(VkPhysicalDevice physical_device)
+{
+    uint32_t queue_families_properties_count;
+    vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_families_properties_count, NULL);
+    VkQueueFamilyProperties *queue_families_properties = malloc(sizeof(VkQueueFamilyProperties) * queue_families_properties_count);
+    vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_families_properties_count, queue_families_properties);
+
+    for (uint32_t i = 0; i < queue_families_properties_count; ++i) {
+        if (queue_families_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+            return i;
+    }
+
+    return QUEUE_FAMILY_INDICE_DEFAULT;
+}
+
 bool vulkan_pick_physical_device(VkInstance instance, VkPhysicalDevice *physical_device)
 {
     uint32_t physical_devices_count;
@@ -216,4 +231,81 @@ bool vulkan_pick_physical_device(VkInstance instance, VkPhysicalDevice *physical
     free(physical_devices);
     free(physical_devices_score);
     return is_picked_valid;
+}
+
+static struct queue_family_indices vulkan_get_queue_families_indices(VkPhysicalDevice physical_device)
+{
+    struct queue_family_indices queue_family_indices = {0};
+
+    uint32_t queue_family_properties_count;
+    vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_properties_count, NULL);
+    VkQueueFamilyProperties *queue_family_properties = malloc(sizeof(VkQueueFamilyProperties) * queue_family_properties_count);
+    vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_properties_count, NULL);
+
+    for (uint32_t i = 0; i < queue_family_properties_count; ++i) {
+        if (queue_family_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+            queue_family_indices.graphic = i;
+            break;
+        }
+    }
+
+    free(queue_family_properties);
+
+    return queue_family_indices;
+}
+
+bool vulkan_create_logical_device(VkPhysicalDevice physical_device, VkDevice *device, VkQueue *graphic_queue)
+{
+    struct queue_family_indices queue_family_indices = vulkan_get_queue_families_indices(physical_device);
+    float queue_priority = 1.0f;
+
+    VkDeviceQueueCreateInfo device_queue_info = {
+        .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+        .pNext = NULL,
+        .queueFamilyIndex = queue_family_indices.graphic,
+        .queueCount = 1,
+        .pQueuePriorities = &queue_priority
+    };
+
+    VkPhysicalDeviceExtendedDynamicStateFeaturesEXT physical_device_features_extended = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT,
+        .extendedDynamicState = true,
+        .pNext = NULL
+    };
+
+    VkPhysicalDeviceVulkan13Features physical_device_features_13 = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
+        .dynamicRendering = true,
+        .pNext = &physical_device_features_extended,
+    };
+
+    VkPhysicalDeviceFeatures2 physical_device_features = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+        .pNext = &physical_device_features_13
+    };
+
+    const char *device_extensions[] = {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+        VK_KHR_SPIRV_1_4_EXTENSION_NAME,
+        VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME,
+        VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME
+    };
+    const uint32_t device_extensions_count = 4;
+
+    VkDeviceCreateInfo device_info = {
+        .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+        .pNext = &physical_device_features,
+        .queueCreateInfoCount = 1,
+        .pQueueCreateInfos = &device_queue_info,
+        .enabledExtensionCount = device_extensions_count,
+        .ppEnabledExtensionNames = device_extensions
+    };
+
+    VkBool32 result = vkCreateDevice(physical_device, &device_info, NULL, device);
+
+    if (result != VK_SUCCESS)
+        return false;
+
+    vkGetDeviceQueue(*device, queue_family_indices.graphic, 0, graphic_queue);
+    return true;
 }

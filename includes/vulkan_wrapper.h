@@ -20,6 +20,12 @@
 extern const char *validation_layers[];
 #endif
 
+#define QUEUE_FAMILY_INDICE_DEFAULT 0
+
+struct queue_family_indices {
+    uint32_t graphic;
+};
+
 bool vulkan_create_instance(VkInstance *instance,
     const char *engine_name,
     const uint32_t engine_version,
@@ -28,5 +34,6 @@ bool vulkan_create_instance(VkInstance *instance,
 
 bool vulkan_setup_debug_messenger(VkInstance instance, VkDebugUtilsMessengerEXT *debug_messenger, PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessengerEXT_func);
 bool vulkan_pick_physical_device(VkInstance instance, VkPhysicalDevice *physical_device);
+bool vulkan_create_logical_device(VkPhysicalDevice physical_device, VkDevice *device, VkQueue *graphic_queue);
 
 #endif
