@@ -25,6 +25,7 @@ typedef struct engine
 
     VkInstance instance;
     VkDebugUtilsMessengerEXT debug_messenger;
+    VkPhysicalDevice physical_device;
 
     struct vulkan_extensions_functions vulkan_extensions_functions;
 } * engine_t;

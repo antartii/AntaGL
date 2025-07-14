@@ -27,5 +27,6 @@ bool vulkan_create_instance(VkInstance *instance,
     const uint32_t application_version);
 
 bool vulkan_setup_debug_messenger(VkInstance instance, VkDebugUtilsMessengerEXT *debug_messenger, PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessengerEXT_func);
+bool vulkan_pick_physical_device(VkInstance instance, VkPhysicalDevice *physical_device);
 
 #endif

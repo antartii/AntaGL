@@ -41,6 +41,7 @@ static void vulkan_get_instance_extensions_names(const char ***extensions_names,
 
 static bool vulkan_check_instance_extensions(const char **queried_extensions_names, uint32_t extensions_count)
 {
+    bool result = true;
     uint32_t extensions_properties_count;
 
     vkEnumerateInstanceExtensionProperties(NULL, &extensions_properties_count, NULL);
@@ -56,14 +57,16 @@ static bool vulkan_check_instance_extensions(const char **queried_extensions_nam
             }
         }
         if (!extension_found)
-            return false;
+            result = false;
     }
 
-    return true;
+    free(extensions_properties);
+    return result;
 }
 
 static bool vulkan_check_instance_layers(const char **queried_layers, uint32_t layers_count)
 {
+    bool result = true;
     uint32_t layers_properties_count;
     vkEnumerateInstanceLayerProperties(&layers_properties_count, NULL);
     VkLayerProperties *layer_properties = malloc(sizeof(VkLayerProperties) * layers_properties_count);
@@ -78,10 +81,11 @@ static bool vulkan_check_instance_layers(const char **queried_layers, uint32_t l
             }
         }
         if (!layer_found)
-            return false;
+            result = false;
     }
 
-    return true;
+    free(layer_properties);
+    return result;
 }
 
 static void vulkan_get_instance_layers_names(const char ***layers_names, uint32_t *layers_count)
@@ -154,9 +158,58 @@ bool vulkan_create_instance(VkInstance *instance,
         .ppEnabledLayerNames = layers_names
     };
 
-    if (vkCreateInstance(&instance_info, NULL, instance) != VK_SUCCESS)
-        return false;
-    else
-        return true;
+    VkBool32 result = vkCreateInstance(&instance_info, NULL, instance);
+    
+    free(extensions_names);
+    #ifdef DEBUG
+    free(layers_names);
+    #endif
+
+    return !(result != VK_SUCCESS);
 }
 
+static int vulkan_get_physical_device_suitability_score(VkPhysicalDevice physical_device)
+{
+    int score = 0;
+    VkPhysicalDeviceProperties properties;
+    VkPhysicalDeviceFeatures features;
+
+    vkGetPhysicalDeviceProperties(physical_device, &properties);
+    vkGetPhysicalDeviceFeatures(physical_device, &features);
+
+    if (!features.geometryShader)
+        return 0;
+    
+    if (properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+        score += 1000;
+
+    score += properties.limits.maxImageDimension2D;
+
+    return score;
+}
+
+bool vulkan_pick_physical_device(VkInstance instance, VkPhysicalDevice *physical_device)
+{
+    uint32_t physical_devices_count;
+    vkEnumeratePhysicalDevices(instance, &physical_devices_count, NULL);
+    if (physical_devices_count == 0)
+        return false;
+    VkPhysicalDevice *physical_devices = malloc(sizeof(VkPhysicalDevice) * physical_devices_count);
+    int *physical_devices_score  = malloc(sizeof(int) * physical_devices_count);
+    vkEnumeratePhysicalDevices(instance, &physical_devices_count, physical_devices);
+
+    for (uint32_t i = 0; i < physical_devices_count; ++i)
+        physical_devices_score [i] = vulkan_get_physical_device_suitability_score(physical_devices[i]);
+    
+    uint32_t picked_index = 0;    
+    for (uint32_t i = 1; i < physical_devices_count; ++i) {
+        if (physical_devices_score [i] > physical_devices_score [picked_index])
+            picked_index = i;
+    }
+
+    *physical_device = physical_devices[picked_index];
+
+    free(physical_devices);
+    free(physical_devices_score);
+    return true;
+}

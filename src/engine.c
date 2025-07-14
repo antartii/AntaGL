@@ -47,6 +47,7 @@ static void engine_init(engine_t engine, const char *application_name, uint32_t 
         #ifdef DEBUG
         || !vulkan_setup_debug_messenger(engine->instance, &engine->debug_messenger, engine->vulkan_extensions_functions.vkCreateDebugUtilsMessengerEXT)
         #endif
+        || !vulkan_pick_physical_device(engine->instance, &engine->physical_device)
     )
         engine_error(engine, "engine_init: failed to init the engine\n", true);
 }
