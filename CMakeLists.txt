@@ -13,6 +13,7 @@ add_executable(AntaEngine
     src/main.c
     src/utils.c
     src/engine.c
+    src/vulkan_wrapper.c
     src/wayland.c # for wayland
 )
 
@@ -33,4 +34,4 @@ target_link_libraries(AntaEngine PRIVATE
 
 # for wayland
 target_compile_options(AntaEngine PRIVATE ${WAYLAND_CFLAGS_OTHER})
-target_compile_definitions(my_engine PRIVATE WAYLAND_TEST)
+target_compile_definitions(AntaEngine PRIVATE WAYLAND_SURFACE)

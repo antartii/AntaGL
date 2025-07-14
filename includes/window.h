@@ -1,9 +1,10 @@
 #ifndef _WINDOW_H
 #define _WINDOW_H
 
-// for wayland
+#ifdef WAYLAND_SURFACE
 #include <wayland-client.h>
 #include "xdg-shell-client-protocol.h"
+#endif
 
 enum window_states {
     MAXIMIZED,
@@ -24,7 +25,7 @@ struct window
     int height;
     enum window_states state;
 
-    // wayland
+    #ifdef WAYLAND_SURFACE
     struct wl_display *display;
     struct wl_registry *registry;
     struct wl_compositor *compositor;
@@ -35,6 +36,7 @@ struct window
     struct xdg_wm_base *xdg_wm_base;
     struct xdg_surface *xdg_surface;
     struct xdg_toplevel *xdg_toplevel;
+    #endif
 };
 
 typedef struct window * window_t;

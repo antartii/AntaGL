@@ -1,5 +1,10 @@
 #include "wayland.h"
 
+const char *wayland_instance_extensions[] = {
+    "VK_KHR_surface",
+    "VK_KHR_wayland_surface"
+};
+
 static void xdg_toplevel_handle_close(void *data, struct xdg_toplevel *xdg_toplevel)
 {
     window_t window = data;

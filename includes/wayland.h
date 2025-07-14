@@ -15,6 +15,11 @@
 #include "window.h"
 #include "xdg-shell-client-protocol.h"
 
+extern const char *wayland_instance_extensions[];
+
+#define WAYLAND_EXTENSIONS_NAMES wayland_instance_extensions
+#define WAYLAND_EXTENSIONS_COUNT 2
+
 /*
 
 Every message between client and server is in 32-bit words

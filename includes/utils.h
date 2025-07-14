@@ -10,4 +10,10 @@
  */
 char *int_to_str(int n, char *buffer);
 
+struct version {
+    int major;
+    int minor;
+    int patch;
+};
+
 #endif
