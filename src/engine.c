@@ -41,7 +41,13 @@ static void engine_init(engine_t engine, const char *application_name, uint32_t 
 
     if (!init_wayland(engine->window))
         engine_error(engine, "engine_init: wayland window couldn't be inited\n", true);
-    if (!vulkan_create_instance(&engine->instance, ENGINE_NAME, ENGINE_VERSION, application_name, application_version))
+    
+    if (!vulkan_create_instance(&engine->instance, ENGINE_NAME, ENGINE_VERSION, application_name, application_version)
+        || !vulkan_init_extensions_functions(engine->instance, &engine->vulkan_extensions_functions)
+        #ifdef DEBUG
+        || !vulkan_setup_debug_messenger(engine->instance, &engine->debug_messenger, engine->vulkan_extensions_functions.vkCreateDebugUtilsMessengerEXT)
+        #endif
+    )
         engine_error(engine, "engine_init: failed to init the engine\n", true);
 }
 

@@ -18,7 +18,7 @@ enum window_states {
     TILED_BOTTOM
 };
 
-struct window
+typedef struct window
 {
     bool should_close;
     int width;
@@ -37,8 +37,6 @@ struct window
     struct xdg_surface *xdg_surface;
     struct xdg_toplevel *xdg_toplevel;
     #endif
-};
-
-typedef struct window * window_t;
+} * window_t;
 
 #endif

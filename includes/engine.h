@@ -19,14 +19,15 @@
 #define ENGINE_NAME "AntaEngine"
 #define ENGINE_VERSION VK_MAKE_VERSION(1, 0, 0)
 
-struct engine
+typedef struct engine
 {
     window_t window;
 
     VkInstance instance;
-};
+    VkDebugUtilsMessengerEXT debug_messenger;
 
-typedef struct engine * engine_t;
+    struct vulkan_extensions_functions vulkan_extensions_functions;
+} * engine_t;
 
 void engine_cleanup(engine_t engine);
 engine_t engine_create(const char *application_name, const struct version application_version);
