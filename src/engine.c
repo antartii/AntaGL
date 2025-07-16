@@ -19,6 +19,7 @@ static void vulkan_cleanup(engine_t engine)
         #ifdef DEBUG
         if (engine->debug_messenger) engine->vulkan_extensions_functions.vkDestroyDebugUtilsMessengerEXT(engine->instance, engine->debug_messenger, NULL);
         #endif
+        if (engine->surface) vkDestroySurfaceKHR(engine->instance, engine->surface, NULL);
         vkDestroyInstance(engine->instance, NULL);
     }
 }
@@ -53,8 +54,9 @@ static void engine_init(engine_t engine, const char *application_name, uint32_t 
         #ifdef DEBUG
         || !vulkan_setup_debug_messenger(engine->instance, &engine->debug_messenger, engine->vulkan_extensions_functions.vkCreateDebugUtilsMessengerEXT)
         #endif
+        || !vulkan_create_surface(engine->instance, engine->window, &engine->surface)
         || !vulkan_pick_physical_device(engine->instance, &engine->physical_device)
-        || !vulkan_create_logical_device(engine->physical_device, &engine->device, &engine->graphic_queue)
+        || !vulkan_create_logical_device(engine->physical_device, engine->surface, &engine->device, &engine->graphic_queue, &engine->present_queue)
     )
         engine_error(engine, "engine_init: failed to init the engine\n", true);
 }

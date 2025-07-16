@@ -27,8 +27,10 @@ typedef struct engine
     VkDebugUtilsMessengerEXT debug_messenger;
     VkPhysicalDevice physical_device;
     VkDevice device;
+    VkSurfaceKHR surface;
 
     VkQueue graphic_queue;
+    VkQueue present_queue;
 
     struct vulkan_extensions_functions vulkan_extensions_functions;
 } * engine_t;

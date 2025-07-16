@@ -190,21 +190,6 @@ static int vulkan_get_physical_device_suitability_score(VkPhysicalDevice physica
     return score;
 }
 
-static uint32_t vulkan_find_queue_families(VkPhysicalDevice physical_device)
-{
-    uint32_t queue_families_properties_count;
-    vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_families_properties_count, NULL);
-    VkQueueFamilyProperties *queue_families_properties = malloc(sizeof(VkQueueFamilyProperties) * queue_families_properties_count);
-    vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_families_properties_count, queue_families_properties);
-
-    for (uint32_t i = 0; i < queue_families_properties_count; ++i) {
-        if (queue_families_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
-            return i;
-    }
-
-    return QUEUE_FAMILY_INDICE_DEFAULT;
-}
-
 bool vulkan_pick_physical_device(VkInstance instance, VkPhysicalDevice *physical_device)
 {
     uint32_t physical_devices_count;
@@ -233,20 +218,43 @@ bool vulkan_pick_physical_device(VkInstance instance, VkPhysicalDevice *physical
     return is_picked_valid;
 }
 
-static struct queue_family_indices vulkan_get_queue_families_indices(VkPhysicalDevice physical_device)
+static struct queue_family_indices vulkan_get_queue_families_indices(VkPhysicalDevice physical_device, VkSurfaceKHR surface)
 {
     struct queue_family_indices queue_family_indices = {0};
 
     uint32_t queue_family_properties_count;
     vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_properties_count, NULL);
     VkQueueFamilyProperties *queue_family_properties = malloc(sizeof(VkQueueFamilyProperties) * queue_family_properties_count);
-    vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_properties_count, NULL);
+    vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_properties_count, queue_family_properties);
+
+    queue_family_indices.present = queue_family_properties_count;
+    queue_family_indices.graphic = queue_family_properties_count;
 
     for (uint32_t i = 0; i < queue_family_properties_count; ++i) {
-        if (queue_family_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+        VkBool32 graphic_support_present = VK_FALSE;
+        vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, i, surface, &graphic_support_present);
+
+        if (queue_family_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT
+            && graphic_support_present) {
             queue_family_indices.graphic = i;
-            break;
+            queue_family_indices.present = i;
+            free(queue_family_properties);
+            return queue_family_indices;
         }
+    }
+
+    for (uint32_t i = 0; i < queue_family_properties_count; ++i) {
+        if (queue_family_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+            queue_family_indices.graphic = i;
+
+        VkBool32 support_present = VK_FALSE;
+        vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, i, surface, &support_present);
+        if (support_present)
+            queue_family_indices.present = i;
+
+        if (queue_family_indices.present != queue_family_properties_count
+            && queue_family_indices.graphic != queue_family_properties_count)
+            break;
     }
 
     free(queue_family_properties);
@@ -254,9 +262,9 @@ static struct queue_family_indices vulkan_get_queue_families_indices(VkPhysicalD
     return queue_family_indices;
 }
 
-bool vulkan_create_logical_device(VkPhysicalDevice physical_device, VkDevice *device, VkQueue *graphic_queue)
+bool vulkan_create_logical_device(VkPhysicalDevice physical_device, VkSurfaceKHR surface, VkDevice *device, VkQueue *graphic_queue, VkQueue *present_queue)
 {
-    struct queue_family_indices queue_family_indices = vulkan_get_queue_families_indices(physical_device);
+    struct queue_family_indices queue_family_indices = vulkan_get_queue_families_indices(physical_device, surface);
     float queue_priority = 1.0f;
 
     VkDeviceQueueCreateInfo device_queue_info = {
@@ -307,5 +315,25 @@ bool vulkan_create_logical_device(VkPhysicalDevice physical_device, VkDevice *de
         return false;
 
     vkGetDeviceQueue(*device, queue_family_indices.graphic, 0, graphic_queue);
+    vkGetDeviceQueue(*device, queue_family_indices.present, 0, present_queue);
     return true;
+}
+
+bool vulkan_create_surface(VkInstance instance, window_t window, VkSurfaceKHR *surface)
+{
+    #ifdef WAYLAND_SURFACE
+    VkWaylandSurfaceCreateInfoKHR surface_info = {
+        .sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
+        .pNext = NULL,
+        .surface = window->surface,
+        .display = window->display
+    };
+
+    if (vkCreateWaylandSurfaceKHR(instance, &surface_info, NULL, surface) != VK_SUCCESS)
+        return false;
+    else
+        return true;
+    #else
+    return false;
+    #endif
 }
