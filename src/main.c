@@ -24,7 +24,7 @@ int main(const int argc, const char **argv, const char **env)
 
     engine_t engine = engine_create(app_name, app_version);
 
-    run(engine);
+    // run(engine);
 
     engine_cleanup(engine);
     return EXIT_SUCCESS;

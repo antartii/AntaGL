@@ -325,7 +325,10 @@ bool vulkan_create_logical_device(VkPhysicalDevice physical_device, VkSurfaceKHR
         return false;
 
     vkGetDeviceQueue(*device, queue_family_indices.graphic, 0, graphic_queue);
-    vkGetDeviceQueue(*device, queue_family_indices.present, 0, present_queue);
+    if (!is_graphic_also_present)
+        vkGetDeviceQueue(*device, queue_family_indices.present, 0, present_queue);
+    else
+        present_queue = graphic_queue;
     return true;
 }
 
@@ -346,4 +349,111 @@ bool vulkan_create_surface(VkInstance instance, window_t window, VkSurfaceKHR *s
     #else
     return false;
     #endif
+}
+
+static VkSurfaceFormatKHR vulkan_choose_swapchain_surface_format(const VkSurfaceFormatKHR *available_formats, const uint32_t available_formats_count)
+{
+    for (uint32_t i = 0; i < available_formats_count; ++i) {
+        if (available_formats[i].format == VK_FORMAT_B8G8R8A8_SRGB && available_formats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+            return available_formats[i];
+    }
+    return available_formats[0];
+}
+
+static VkExtent2D vulkan_choose_swap_extent(const VkSurfaceCapabilitiesKHR capabilities, window_t window)
+{
+    if (capabilities.currentExtent.width != UINT32_MAX)
+        return capabilities.currentExtent;
+    
+    return (VkExtent2D) {
+        .width = (uint32_t) clamp_int(window->width, capabilities.minImageExtent.width, capabilities.maxImageExtent.height),
+        .height = (uint32_t) clamp_int(window->height, capabilities.minImageExtent.height, capabilities.maxImageExtent.width)
+    };
+}
+
+static VkPresentModeKHR vulkan_choose_swap_present_mode(const VkPresentModeKHR *available_present_modes, uint32_t available_present_modes_count)
+{
+    for (uint32_t i = 0; i < available_present_modes_count; ++i) {
+        if (available_present_modes[i] == VK_PRESENT_MODE_MAILBOX_KHR)
+            return available_present_modes[i];
+    }
+
+    return VK_PRESENT_MODE_FIFO_KHR;
+}
+
+bool vulkan_create_swapchain(
+    VkPhysicalDevice physical_device,
+    VkDevice device,
+    VkSurfaceKHR surface,
+    window_t window,
+    VkSwapchainKHR *swapchain,
+    VkFormat *swapchain_image_format,
+    VkExtent2D *extent,
+    VkImage **swapchain_images,
+    uint32_t *swapchain_images_count)
+{
+    VkSurfaceCapabilitiesKHR surface_capabilities;
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &surface_capabilities);
+
+    uint32_t surface_formats_count;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &surface_formats_count, NULL);
+    VkSurfaceFormatKHR *surface_formats = malloc(sizeof(VkSurfaceFormatKHR) * surface_formats_count);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &surface_formats_count, surface_formats);
+    *swapchain_image_format = vulkan_choose_swapchain_surface_format(surface_formats, surface_formats_count).format;
+
+    *extent = vulkan_choose_swap_extent(surface_capabilities, window);
+
+    uint32_t min_image_count_request = (uint32_t) max_int(3u, surface_capabilities.minImageCount);
+    min_image_count_request = (surface_capabilities.maxImageCount > 0 && min_image_count_request > surface_capabilities.maxImageCount) ? surface_capabilities.maxImageCount : min_image_count_request;
+
+    uint32_t image_count_request = surface_capabilities.minImageCount + 1;
+    if (surface_capabilities.maxImageCount > 0 && image_count_request > surface_capabilities.maxImageCount)
+        image_count_request = surface_capabilities.maxImageCount;
+
+    uint32_t available_present_modes_count;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface, &available_present_modes_count, NULL);
+    VkPresentModeKHR *available_present_modes = malloc(sizeof(VkPresentModeKHR) * available_present_modes_count);
+    vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface, &available_present_modes_count, available_present_modes);
+
+    VkSwapchainCreateInfoKHR swapchain_info = {0};
+    swapchain_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    swapchain_info.flags = 0;
+    swapchain_info.surface = surface;
+    swapchain_info.minImageCount = min_image_count_request;
+    swapchain_info.imageFormat = *swapchain_image_format;
+    swapchain_info.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+    swapchain_info.imageExtent = *extent;
+    swapchain_info.imageArrayLayers = 1;
+    swapchain_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    swapchain_info.preTransform = surface_capabilities.currentTransform;
+    swapchain_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    swapchain_info.presentMode = vulkan_choose_swap_present_mode(available_present_modes, available_present_modes_count);
+    swapchain_info.clipped = true;
+    swapchain_info.oldSwapchain = VK_NULL_HANDLE;
+
+    struct queue_family_indices queue_family_indices = vulkan_get_queue_families_indices(physical_device, surface);
+    uint32_t queue_family_indices_arr[] = {queue_family_indices.graphic, queue_family_indices.present};
+
+    if (queue_family_indices.graphic != queue_family_indices.present) {
+        swapchain_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        swapchain_info.queueFamilyIndexCount = 2;
+        swapchain_info.pQueueFamilyIndices = queue_family_indices_arr;
+    } else  {
+        swapchain_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        swapchain_info.queueFamilyIndexCount = 0;
+        swapchain_info.pQueueFamilyIndices = NULL;
+    }
+
+    VkResult result = vkCreateSwapchainKHR(device, &swapchain_info, NULL, swapchain);
+    /*vkGetSwapchainImagesKHR(device, *swapchain, swapchain_images_count, NULL);
+    *swapchain_images = malloc(sizeof(VkImage) * (*swapchain_images_count));
+    vkCreateImageView();
+    VkResult result = vkGetSwapchainImagesKHR(device, *swapchain, swapchain_images_count, *swapchain_images);*/
+
+    free(surface_formats);
+    free(available_present_modes);
+
+    if (result != VK_SUCCESS)
+        return false;
+    return true;
 }

@@ -14,7 +14,15 @@ static int engine_error(engine_t engine, const char *msg, const bool is_critical
 
 static void vulkan_cleanup(engine_t engine)
 {
-    if (engine->device) vkDestroyDevice(engine->device, NULL);
+    if (engine->device) {
+        if (engine->swapchain) vkDestroySwapchainKHR(engine->device, engine->swapchain, NULL);
+        if (engine->swapchain_images) {
+            for (uint32_t i = 0; i < engine->swapchain_images_count; ++i)
+                vkDestroyImage(engine->device, engine->swapchain_images[i], NULL);
+            free(engine->swapchain_images);
+        }
+        vkDestroyDevice(engine->device, NULL);
+    }
     if (engine->instance) {
         #ifdef DEBUG
         if (engine->debug_messenger) engine->vulkan_extensions_functions.vkDestroyDebugUtilsMessengerEXT(engine->instance, engine->debug_messenger, NULL);
@@ -57,6 +65,7 @@ static void engine_init(engine_t engine, const char *application_name, uint32_t 
         || !vulkan_create_surface(engine->instance, engine->window, &engine->surface)
         || !vulkan_pick_physical_device(engine->instance, &engine->physical_device)
         || !vulkan_create_logical_device(engine->physical_device, engine->surface, &engine->device, &engine->graphic_queue, &engine->present_queue)
+        || !vulkan_create_swapchain(engine->physical_device, engine->device, engine->surface, engine->window, &engine->swapchain, &engine->swapchain_image_format, &engine->swapchain_extent, &engine->swapchain_images, &engine->swapchain_images_count)
     )
         engine_error(engine, "engine_init: failed to init the engine\n", true);
 }

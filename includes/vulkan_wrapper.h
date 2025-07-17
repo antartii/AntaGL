@@ -39,5 +39,15 @@ bool vulkan_setup_debug_messenger(VkInstance instance, VkDebugUtilsMessengerEXT 
 bool vulkan_pick_physical_device(VkInstance instance, VkPhysicalDevice *physical_device);
 bool vulkan_create_logical_device(VkPhysicalDevice physical_device, VkSurfaceKHR surface, VkDevice *device, VkQueue *graphic_queue, VkQueue *present_queue);
 bool vulkan_create_surface(VkInstance instance, window_t window, VkSurfaceKHR *surface);
+bool vulkan_create_swapchain(
+    VkPhysicalDevice physical_device,
+    VkDevice device,
+    VkSurfaceKHR surface,
+    window_t window,
+    VkSwapchainKHR *swapchain,
+    VkFormat *swapchain_image_format,
+    VkExtent2D *extent,
+    VkImage **swapchain_images,
+    uint32_t *swapchain_images_count);
 
 #endif

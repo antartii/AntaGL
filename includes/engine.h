@@ -28,6 +28,12 @@ typedef struct engine
     VkPhysicalDevice physical_device;
     VkDevice device;
     VkSurfaceKHR surface;
+    VkFormat swapchain_image_format;
+    VkExtent2D swapchain_extent;
+    VkSwapchainKHR swapchain;
+
+    uint32_t swapchain_images_count;
+    VkImage *swapchain_images;
 
     VkQueue graphic_queue;
     VkQueue present_queue;

@@ -16,4 +16,7 @@ struct version {
     int patch;
 };
 
+int clamp_int(int val, int min, int max);
+int max_int(int val, int max);
+
 #endif

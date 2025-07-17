@@ -28,3 +28,13 @@ char *int_to_str(int n, char *buffer)
 
     return buffer;
 }
+
+int clamp_int(int val, int min, int max)
+{
+    return val < min ? min : (val > max ? max : val);
+}
+
+int max_int(int val, int max)
+{
+    return val > max ? val : max;
+}
