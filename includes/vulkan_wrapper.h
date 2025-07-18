@@ -47,7 +47,9 @@ bool vulkan_create_swapchain(
     VkSwapchainKHR *swapchain,
     VkFormat *swapchain_image_format,
     VkExtent2D *extent,
-    VkImage **swapchain_images,
-    uint32_t *swapchain_images_count);
+    uint32_t *swapchain_images_count,
+    VkImage **swapchain_images);
+
+bool vulkan_create_image_view(VkDevice device, VkFormat swapchain_image_format, uint32_t swapchain_images_count, VkImage *swapchain_images, VkImageView **swapchain_image_views);
 
 #endif

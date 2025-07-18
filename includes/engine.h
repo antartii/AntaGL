@@ -35,6 +35,8 @@ typedef struct engine
     uint32_t swapchain_images_count;
     VkImage *swapchain_images;
 
+    VkImageView *swapchain_image_views;
+
     VkQueue graphic_queue;
     VkQueue present_queue;
 

@@ -389,8 +389,8 @@ bool vulkan_create_swapchain(
     VkSwapchainKHR *swapchain,
     VkFormat *swapchain_image_format,
     VkExtent2D *extent,
-    VkImage **swapchain_images,
-    uint32_t *swapchain_images_count)
+    uint32_t *swapchain_images_count,
+    VkImage **swapchain_images)
 {
     VkSurfaceCapabilitiesKHR surface_capabilities;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &surface_capabilities);
@@ -445,15 +445,47 @@ bool vulkan_create_swapchain(
     }
 
     VkResult result = vkCreateSwapchainKHR(device, &swapchain_info, NULL, swapchain);
-    /*vkGetSwapchainImagesKHR(device, *swapchain, swapchain_images_count, NULL);
+
+    vkGetSwapchainImagesKHR(device, *swapchain, swapchain_images_count, NULL);
     *swapchain_images = malloc(sizeof(VkImage) * (*swapchain_images_count));
-    vkCreateImageView();
-    VkResult result = vkGetSwapchainImagesKHR(device, *swapchain, swapchain_images_count, *swapchain_images);*/
+    vkGetSwapchainImagesKHR(device, *swapchain, swapchain_images_count, *swapchain_images);
 
     free(surface_formats);
     free(available_present_modes);
 
     if (result != VK_SUCCESS)
         return false;
+    return true;
+}
+
+bool vulkan_create_image_view(VkDevice device, VkFormat swapchain_image_format, uint32_t swapchain_images_count, VkImage *swapchain_images, VkImageView **swapchain_image_views)
+{
+    VkImageViewCreateInfo image_view_info = {0};
+    image_view_info.pNext = NULL;
+    image_view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    image_view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    image_view_info.format = swapchain_image_format;
+    image_view_info.subresourceRange = (VkImageSubresourceRange) {
+        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .baseMipLevel = 0,
+        .levelCount = 1,
+        .baseArrayLayer = 0,
+        .layerCount = 1
+    };
+    image_view_info.components = (VkComponentMapping) {
+        .a = VK_COMPONENT_SWIZZLE_IDENTITY,
+        .r = VK_COMPONENT_SWIZZLE_IDENTITY,
+        .g = VK_COMPONENT_SWIZZLE_IDENTITY,
+        .b = VK_COMPONENT_SWIZZLE_IDENTITY
+    };
+
+    *swapchain_image_views = malloc(sizeof(VkImageView) * swapchain_images_count);
+
+    for (uint32_t i = 0; i < swapchain_images_count; ++i) {
+        image_view_info.image = swapchain_images[i];
+        if (vkCreateImageView(device, &image_view_info, NULL, &((*swapchain_image_views)[i])) != VK_SUCCESS)
+            return false;
+    }
+
     return true;
 }
