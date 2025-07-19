@@ -23,6 +23,9 @@ extern const char *validation_layers[];
 #endif
 
 #define QUEUE_FAMILY_INDICE_DEFAULT 0
+#define SHADERS_FILE_PATH "shaders/slang.spv"
+#define SHADER_VERTEX_ENTRY_POINT "vertMain"
+#define SHADER_FRAGMENT_ENTRY_POINT "fragMain"
 
 struct queue_family_indices {
     uint32_t graphic;
@@ -51,5 +54,6 @@ bool vulkan_create_swapchain(
     VkImage **swapchain_images);
 
 bool vulkan_create_image_view(VkDevice device, VkFormat swapchain_image_format, uint32_t swapchain_images_count, VkImage *swapchain_images, VkImageView **swapchain_image_views);
+bool vulkan_create_graphic_pipeline(VkDevice device, VkExtent2D swapchain_extent, VkFormat swapchain_image_format, VkPipelineLayout *pipeline_layout, VkPipeline *graphic_pipeline);
 
 #endif

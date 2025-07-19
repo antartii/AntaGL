@@ -15,6 +15,8 @@ static int engine_error(engine_t engine, const char *msg, const bool is_critical
 static void vulkan_cleanup(engine_t engine)
 {
     if (engine->device) {
+        if (engine->graphic_pipeline) vkDestroyPipeline(engine->device, engine->graphic_pipeline, NULL);
+        if (engine->pipeline_layout) vkDestroyPipelineLayout(engine->device, engine->pipeline_layout, NULL);
         if (engine->swapchain) vkDestroySwapchainKHR(engine->device, engine->swapchain, NULL);
         if (engine->swapchain_images) {
             for (uint32_t i = 0; i < engine->swapchain_images_count; ++i)
@@ -67,6 +69,7 @@ static void engine_init(engine_t engine, const char *application_name, uint32_t 
         || !vulkan_create_logical_device(engine->physical_device, engine->surface, &engine->device, &engine->graphic_queue, &engine->present_queue)
         || !vulkan_create_swapchain(engine->physical_device, engine->device, engine->surface, engine->window, &engine->swapchain, &engine->swapchain_image_format, &engine->swapchain_extent, &engine->swapchain_images_count, &engine->swapchain_images)
         || !vulkan_create_image_view(engine->device, engine->swapchain_image_format, engine->swapchain_images_count, engine->swapchain_images, &engine->swapchain_image_views)
+        || !vulkan_create_graphic_pipeline(engine->device, engine->swapchain_extent, engine->swapchain_image_format, &engine->pipeline_layout, &engine->graphic_pipeline)
     )
         engine_error(engine, "engine_init: failed to init the engine\n", true);
 }

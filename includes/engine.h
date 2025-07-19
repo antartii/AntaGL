@@ -31,6 +31,8 @@ typedef struct engine
     VkFormat swapchain_image_format;
     VkExtent2D swapchain_extent;
     VkSwapchainKHR swapchain;
+    VkPipelineLayout pipeline_layout;
+    VkPipeline graphic_pipeline;
 
     uint32_t swapchain_images_count;
     VkImage *swapchain_images;

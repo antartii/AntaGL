@@ -114,10 +114,7 @@ bool vulkan_setup_debug_messenger(VkInstance instance, VkDebugUtilsMessengerEXT 
         .pfnUserCallback = vulkan_debug_callback
     };
 
-    if (vkCreateDebugUtilsMessengerEXT_func(instance, &debug_messenger_info, NULL, debug_messenger) != VK_SUCCESS)
-        return false;
-    else
-        return true;
+    return vkCreateDebugUtilsMessengerEXT_func(instance, &debug_messenger_info, NULL, debug_messenger) == VK_SUCCESS;
 }
 
 bool vulkan_create_instance(VkInstance *instance,
@@ -165,7 +162,7 @@ bool vulkan_create_instance(VkInstance *instance,
     free(layers_names);
     #endif
 
-    return !(result != VK_SUCCESS);
+    return result == VK_SUCCESS;
 }
 
 static int vulkan_get_physical_device_suitability_score(VkPhysicalDevice physical_device)
@@ -342,10 +339,7 @@ bool vulkan_create_surface(VkInstance instance, window_t window, VkSurfaceKHR *s
         .display = window->display
     };
 
-    if (vkCreateWaylandSurfaceKHR(instance, &surface_info, NULL, surface) != VK_SUCCESS)
-        return false;
-    else
-        return true;
+    return vkCreateWaylandSurfaceKHR(instance, &surface_info, NULL, surface) == VK_SUCCESS;
     #else
     return false;
     #endif
@@ -453,9 +447,7 @@ bool vulkan_create_swapchain(
     free(surface_formats);
     free(available_present_modes);
 
-    if (result != VK_SUCCESS)
-        return false;
-    return true;
+    return result == VK_SUCCESS;
 }
 
 bool vulkan_create_image_view(VkDevice device, VkFormat swapchain_image_format, uint32_t swapchain_images_count, VkImage *swapchain_images, VkImageView **swapchain_image_views)
@@ -488,4 +480,174 @@ bool vulkan_create_image_view(VkDevice device, VkFormat swapchain_image_format, 
     }
 
     return true;
+}
+
+static VkShaderModule vulkan_create_shader_module(VkDevice device, const char *code, uint32_t code_size)
+{
+    VkShaderModuleCreateInfo shader_module_info = {
+        .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+        .pNext = NULL,
+        .flags = 0,
+        .codeSize = code_size,
+        .pCode = (const uint32_t *) code
+    };
+
+    VkShaderModule shader_module;
+
+    vkCreateShaderModule(device, &shader_module_info, NULL, &shader_module);
+
+    return shader_module;
+}
+
+bool vulkan_create_graphic_pipeline(VkDevice device, VkExtent2D swapchain_extent, VkFormat swapchain_image_format, VkPipelineLayout *pipeline_layout, VkPipeline *graphic_pipeline)
+{
+    uint32_t code_size;
+    const char *shader_code = read_file(SHADERS_FILE_PATH, &code_size);
+
+    VkShaderModule shader_module = vulkan_create_shader_module(device, shader_code, code_size);
+    
+    VkPipelineShaderStageCreateInfo vert_stage_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+        .pNext = NULL,
+        .flags = 0,
+        .stage = VK_SHADER_STAGE_VERTEX_BIT,
+        .module = shader_module,
+        .pName = SHADER_VERTEX_ENTRY_POINT
+    };
+
+    VkPipelineShaderStageCreateInfo frag_stage_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+        .pNext = NULL,
+        .flags = 0,
+        .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+        .module = shader_module,
+        .pName = SHADER_FRAGMENT_ENTRY_POINT
+    };
+
+    VkPipelineShaderStageCreateInfo shader_stages[] = {vert_stage_info, frag_stage_info};
+
+    VkDynamicState dynamic_states[] = {
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR
+    };
+
+    VkPipelineDynamicStateCreateInfo dynamic_state_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+        .pNext = NULL,
+        .flags = 0,
+        .dynamicStateCount = 2,
+        .pDynamicStates = dynamic_states
+    };
+
+    VkPipelineVertexInputStateCreateInfo vertex_input_info = {
+        .pNext = NULL,
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+    };
+
+    VkPipelineInputAssemblyStateCreateInfo input_assembly_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+        .pNext = NULL,
+        .flags = 0,
+        .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
+    };
+
+    VkViewport viewport = {
+        .x = 0,
+        .y = 0,
+        .height = swapchain_extent.height,
+        .width = swapchain_extent.width,
+        .minDepth = 0.0f,
+        .maxDepth = 1.0f
+    };
+
+    VkPipelineViewportStateCreateInfo viewport_state_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+        .pNext = NULL,
+        .flags = 0,
+        .viewportCount = 1,
+        .scissorCount = 1
+    };
+
+    VkPipelineRasterizationStateCreateInfo rasterization_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+        .flags = 0,
+        .pNext = NULL,
+        .depthClampEnable = VK_FALSE,
+        .rasterizerDiscardEnable = VK_FALSE,
+        .polygonMode = VK_POLYGON_MODE_FILL,
+        .cullMode = VK_CULL_MODE_BACK_BIT,
+        .frontFace = VK_FRONT_FACE_CLOCKWISE,
+        .depthBiasClamp = VK_FALSE,
+        .depthBiasSlopeFactor = 1.0f,
+        .lineWidth = 1.0f
+    };
+
+    VkPipelineMultisampleStateCreateInfo multisample_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+        .pNext = NULL,
+        .flags = 0,
+        .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+        .sampleShadingEnable = VK_FALSE
+    };
+
+    VkPipelineColorBlendAttachmentState color_blend_attachment = {
+        .colorWriteMask = VK_COLOR_COMPONENT_A_BIT | VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT,
+        .blendEnable = VK_FALSE
+    };
+
+    VkPipelineColorBlendStateCreateInfo color_blend_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+        .pNext = NULL,
+        .flags = 0,
+        .logicOpEnable = VK_FALSE,
+        .logicOp = VK_LOGIC_OP_COPY,
+        .attachmentCount = 1,
+        .pAttachments = &color_blend_attachment
+    };
+
+    VkPipelineLayoutCreateInfo pipeline_layout_info = {
+        .flags = 0,
+        .pNext = NULL,
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+        .setLayoutCount = 0,
+        .pSetLayouts = NULL,
+        .pushConstantRangeCount = 0,
+        .pPushConstantRanges = NULL
+    };
+
+    if (vkCreatePipelineLayout(device, &pipeline_layout_info, NULL, pipeline_layout) != VK_SUCCESS) {
+        vkDestroyShaderModule(device, shader_module, NULL);
+        return false;
+    }
+
+    VkPipelineRenderingCreateInfo pipeline_rendering_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+        .pNext = NULL,
+        .colorAttachmentCount = 1,
+        .pColorAttachmentFormats = &swapchain_image_format
+    };
+
+    VkGraphicsPipelineCreateInfo graphic_pipeline_info = {
+        .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+        .pNext = &pipeline_rendering_info,
+        .stageCount = 2,
+        .pStages = shader_stages,
+        .pVertexInputState = &vertex_input_info,
+        .pInputAssemblyState = &input_assembly_info,
+        .pViewportState = &viewport_state_info,
+        .pRasterizationState = &rasterization_info,
+        .pMultisampleState = &multisample_info,
+        .pColorBlendState = &color_blend_info,
+        .pDynamicState = &dynamic_state_info,
+        .layout = *pipeline_layout,
+        .renderPass = NULL,
+        .basePipelineHandle = VK_NULL_HANDLE,
+        .basePipelineIndex = -1
+    };
+
+    VkResult result = vkCreateGraphicsPipelines(device, NULL, 1, &graphic_pipeline_info, NULL, graphic_pipeline);
+
+    vkDestroyShaderModule(device, shader_module, NULL);
+
+    return result == VK_SUCCESS;
 }

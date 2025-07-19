@@ -1,6 +1,11 @@
 #ifndef _UTILS_H
 #define _UTILS_H
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <unistd.h>
+
 /**
  * @brief Convert an integer to a string
  * 
@@ -18,5 +23,6 @@ struct version {
 
 int clamp_int(int val, int min, int max);
 int max_int(int val, int max);
+char *read_file(const char *file_name, uint32_t *buffer_size);
 
 #endif
