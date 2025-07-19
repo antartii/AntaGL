@@ -15,6 +15,8 @@ static int engine_error(engine_t engine, const char *msg, const bool is_critical
 static void vulkan_cleanup(engine_t engine)
 {
     if (engine->device) {
+        if (engine->command_buffer) vkFreeCommandBuffers(engine->device, engine->command_pool, 1, &engine->command_buffer);
+        if (engine->command_pool) vkDestroyCommandPool(engine->device, engine->command_pool, NULL);
         if (engine->graphic_pipeline) vkDestroyPipeline(engine->device, engine->graphic_pipeline, NULL);
         if (engine->pipeline_layout) vkDestroyPipelineLayout(engine->device, engine->pipeline_layout, NULL);
         if (engine->swapchain) vkDestroySwapchainKHR(engine->device, engine->swapchain, NULL);
@@ -66,10 +68,12 @@ static void engine_init(engine_t engine, const char *application_name, uint32_t 
         #endif
         || !vulkan_create_surface(engine->instance, engine->window, &engine->surface)
         || !vulkan_pick_physical_device(engine->instance, &engine->physical_device)
-        || !vulkan_create_logical_device(engine->physical_device, engine->surface, &engine->device, &engine->graphic_queue, &engine->present_queue)
-        || !vulkan_create_swapchain(engine->physical_device, engine->device, engine->surface, engine->window, &engine->swapchain, &engine->swapchain_image_format, &engine->swapchain_extent, &engine->swapchain_images_count, &engine->swapchain_images)
+        || !vulkan_create_logical_device(engine->physical_device, engine->surface, &engine->device, &engine->graphic_queue, &engine->present_queue, &engine->queue_family_indices)
+        || !vulkan_create_swapchain(engine->physical_device, engine->device, engine->surface, engine->window, engine->queue_family_indices, &engine->swapchain, &engine->swapchain_image_format, &engine->swapchain_extent, &engine->swapchain_images_count, &engine->swapchain_images)
         || !vulkan_create_image_view(engine->device, engine->swapchain_image_format, engine->swapchain_images_count, engine->swapchain_images, &engine->swapchain_image_views)
-        || !vulkan_create_graphic_pipeline(engine->device, engine->swapchain_extent, engine->swapchain_image_format, &engine->pipeline_layout, &engine->graphic_pipeline)
+        || !vulkan_create_graphic_pipeline(engine->device, engine->swapchain_extent, engine->swapchain_image_format, &engine->pipeline_layout, &engine->graphic_pipeline, &engine->viewport)
+        || !vulkan_create_command_pool(engine->device, engine->queue_family_indices, &engine->command_pool)
+        || !vulkan_create_command_buffer(engine->device, engine->command_pool, &engine->command_buffer)
     )
         engine_error(engine, "engine_init: failed to init the engine\n", true);
 }

@@ -259,13 +259,13 @@ static struct queue_family_indices vulkan_get_queue_families_indices(VkPhysicalD
     return queue_family_indices;
 }
 
-bool vulkan_create_logical_device(VkPhysicalDevice physical_device, VkSurfaceKHR surface, VkDevice *device, VkQueue *graphic_queue, VkQueue *present_queue)
+bool vulkan_create_logical_device(VkPhysicalDevice physical_device, VkSurfaceKHR surface, VkDevice *device, VkQueue *graphic_queue, VkQueue *present_queue, struct queue_family_indices *queue_family_indices)
 {
-    struct queue_family_indices queue_family_indices = vulkan_get_queue_families_indices(physical_device, surface);
-    if (queue_family_indices.graphic == UINT32_MAX || queue_family_indices.present == UINT32_MAX)
+    *queue_family_indices = vulkan_get_queue_families_indices(physical_device, surface);
+    if (queue_family_indices->graphic == UINT32_MAX || queue_family_indices->present == UINT32_MAX)
         return false;
     float queue_priority = 1.0f;
-    bool is_graphic_also_present = queue_family_indices.graphic == queue_family_indices.present;
+    bool is_graphic_also_present = queue_family_indices->graphic == queue_family_indices->present;
     int queue_count = (is_graphic_also_present) ? 1 : 2;
 
     VkDeviceQueueCreateInfo device_queue_info[queue_count];
@@ -278,9 +278,9 @@ bool vulkan_create_logical_device(VkPhysicalDevice physical_device, VkSurfaceKHR
         device_queue_info[i].flags = 0;
     }
 
-    device_queue_info[0].queueFamilyIndex = queue_family_indices.graphic;
+    device_queue_info[0].queueFamilyIndex = queue_family_indices->graphic;
     if (!is_graphic_also_present)
-        device_queue_info[1].queueFamilyIndex = queue_family_indices.present;
+        device_queue_info[1].queueFamilyIndex = queue_family_indices->present;
 
     VkPhysicalDeviceExtendedDynamicStateFeaturesEXT physical_device_features_extended = {
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT,
@@ -321,9 +321,9 @@ bool vulkan_create_logical_device(VkPhysicalDevice physical_device, VkSurfaceKHR
     if (result != VK_SUCCESS)
         return false;
 
-    vkGetDeviceQueue(*device, queue_family_indices.graphic, 0, graphic_queue);
+    vkGetDeviceQueue(*device, queue_family_indices->graphic, 0, graphic_queue);
     if (!is_graphic_also_present)
-        vkGetDeviceQueue(*device, queue_family_indices.present, 0, present_queue);
+        vkGetDeviceQueue(*device, queue_family_indices->present, 0, present_queue);
     else
         present_queue = graphic_queue;
     return true;
@@ -380,6 +380,7 @@ bool vulkan_create_swapchain(
     VkDevice device,
     VkSurfaceKHR surface,
     window_t window,
+    struct queue_family_indices queue_family_indices,
     VkSwapchainKHR *swapchain,
     VkFormat *swapchain_image_format,
     VkExtent2D *extent,
@@ -425,7 +426,6 @@ bool vulkan_create_swapchain(
     swapchain_info.clipped = true;
     swapchain_info.oldSwapchain = VK_NULL_HANDLE;
 
-    struct queue_family_indices queue_family_indices = vulkan_get_queue_families_indices(physical_device, surface);
     uint32_t queue_family_indices_arr[] = {queue_family_indices.graphic, queue_family_indices.present};
 
     if (queue_family_indices.graphic != queue_family_indices.present) {
@@ -499,7 +499,7 @@ static VkShaderModule vulkan_create_shader_module(VkDevice device, const char *c
     return shader_module;
 }
 
-bool vulkan_create_graphic_pipeline(VkDevice device, VkExtent2D swapchain_extent, VkFormat swapchain_image_format, VkPipelineLayout *pipeline_layout, VkPipeline *graphic_pipeline)
+bool vulkan_create_graphic_pipeline(VkDevice device, VkExtent2D swapchain_extent, VkFormat swapchain_image_format, VkPipelineLayout *pipeline_layout, VkPipeline *graphic_pipeline, VkViewport *viewport)
 {
     uint32_t code_size;
     const char *shader_code = read_file(SHADERS_FILE_PATH, &code_size);
@@ -551,7 +551,7 @@ bool vulkan_create_graphic_pipeline(VkDevice device, VkExtent2D swapchain_extent
         .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
     };
 
-    VkViewport viewport = {
+    *viewport = (VkViewport) {
         .x = 0,
         .y = 0,
         .height = swapchain_extent.height,
@@ -650,4 +650,123 @@ bool vulkan_create_graphic_pipeline(VkDevice device, VkExtent2D swapchain_extent
     vkDestroyShaderModule(device, shader_module, NULL);
 
     return result == VK_SUCCESS;
+}
+
+bool vulkan_create_command_pool(VkDevice device, struct queue_family_indices queue_family_indices, VkCommandPool *command_pool)
+{
+    VkCommandPoolCreateInfo command_pool_info = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        .pNext = NULL,
+        .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+        .queueFamilyIndex = queue_family_indices.graphic
+    };
+
+    return vkCreateCommandPool(device, &command_pool_info, NULL, command_pool) == VK_SUCCESS;
+}
+
+bool vulkan_create_command_buffer(VkDevice device, VkCommandPool command_pool, VkCommandBuffer *command_buffer)
+{
+    VkCommandBufferAllocateInfo command_buffer_info = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .pNext = NULL,
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandBufferCount = 1,
+        .commandPool = command_pool
+    };
+
+    return vkAllocateCommandBuffers(device, &command_buffer_info, command_buffer) == VK_SUCCESS;
+}
+
+static void transition_image_layout(
+    uint32_t image_index,
+    VkImageLayout old_layout,
+    VkImageLayout new_layout,
+    VkAccessFlags2 src_access_mask,
+    VkAccessFlags2 dst_access_mask,
+    VkPipelineStageFlags2 src_stage_mask,
+    VkPipelineStageFlags2 dst_stage_mask,
+    VkImage *swapchain_images,
+    VkCommandBuffer command_buffer)
+{
+    VkImageMemoryBarrier2 barrier = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+        .pNext = NULL,
+        .srcAccessMask = src_access_mask,
+        .dstAccessMask = dst_access_mask,
+        .srcStageMask = src_stage_mask,
+        .dstStageMask = dst_stage_mask,
+        .oldLayout = old_layout,
+        .newLayout = new_layout,
+        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .image = swapchain_images[image_index],
+        .subresourceRange = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .baseArrayLayer = 1,
+        }
+    };
+
+    VkDependencyInfo dependency_info = {
+        .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+        .pNext = NULL,
+        .dependencyFlags = {0},
+        .imageMemoryBarrierCount = 1,
+        .pImageMemoryBarriers = &barrier
+    };
+
+    vkCmdPipelineBarrier2(command_buffer, &dependency_info);
+}
+
+void record_command_buffer(uint32_t image_index, VkImageView *swapchain_image_views, VkExtent2D swapchain_extent, VkImage *swapchain_images, VkCommandBuffer command_buffer, VkPipeline graphic_pipeline, VkViewport viewport, VkExtent2D swapchain_extent)
+{
+    VkCommandBufferBeginInfo begin_info = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = 0,
+        .pNext = NULL,
+        .pInheritanceInfo = NULL
+    };
+
+    transition_image_layout(image_index, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, swapchain_images, command_buffer);
+    
+    VkClearValue clear_color = {
+        .color = {
+            .float32 = {0.0, 0.0, 0.0, 1.0}
+        }
+    };
+    VkRenderingAttachmentInfo attachment_info = {
+        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+        .pNext = NULL,
+        .imageView = swapchain_image_views[image_index],
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .clearValue = clear_color
+    };
+
+    VkRenderingInfo rendering_info = {
+        .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+        .pNext = NULL,
+        .flags = 0,
+        .renderArea = {
+            .offset.x = 0,
+            .offset.y = 0,
+            .extent = swapchain_extent
+        },
+        .layerCount = 1,
+        .colorAttachmentCount = 1,
+        .pColorAttachments = &attachment_info
+    };
+
+    vkCmdBeginRendering(command_buffer, &rendering_info);
+    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphic_pipeline);
+    vkCmdSetViewport(command_buffer, 0, 1, &viewport);
+    vkCmdSetScissor(command_buffer, 0, 1, &swapchain_extent);
+
+    vkCmdDraw(command_buffer, 3, 1, 0, 0);
+    vkCmdEndRendering(command_buffer);
+
+    transition_image_layout(image_index, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, 0, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT);
+    vkEndCommandBuffer(command_buffer);
 }

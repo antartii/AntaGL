@@ -40,13 +40,14 @@ bool vulkan_create_instance(VkInstance *instance,
 
 bool vulkan_setup_debug_messenger(VkInstance instance, VkDebugUtilsMessengerEXT *debug_messenger, PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessengerEXT_func);
 bool vulkan_pick_physical_device(VkInstance instance, VkPhysicalDevice *physical_device);
-bool vulkan_create_logical_device(VkPhysicalDevice physical_device, VkSurfaceKHR surface, VkDevice *device, VkQueue *graphic_queue, VkQueue *present_queue);
+bool vulkan_create_logical_device(VkPhysicalDevice physical_device, VkSurfaceKHR surface, VkDevice *device, VkQueue *graphic_queue, VkQueue *present_queue, struct queue_family_indices *queue_family_indices);
 bool vulkan_create_surface(VkInstance instance, window_t window, VkSurfaceKHR *surface);
 bool vulkan_create_swapchain(
     VkPhysicalDevice physical_device,
     VkDevice device,
     VkSurfaceKHR surface,
     window_t window,
+    struct queue_family_indices queue_family_indices,
     VkSwapchainKHR *swapchain,
     VkFormat *swapchain_image_format,
     VkExtent2D *extent,
@@ -54,6 +55,8 @@ bool vulkan_create_swapchain(
     VkImage **swapchain_images);
 
 bool vulkan_create_image_view(VkDevice device, VkFormat swapchain_image_format, uint32_t swapchain_images_count, VkImage *swapchain_images, VkImageView **swapchain_image_views);
-bool vulkan_create_graphic_pipeline(VkDevice device, VkExtent2D swapchain_extent, VkFormat swapchain_image_format, VkPipelineLayout *pipeline_layout, VkPipeline *graphic_pipeline);
+bool vulkan_create_graphic_pipeline(VkDevice device, VkExtent2D swapchain_extent, VkFormat swapchain_image_format, VkPipelineLayout *pipeline_layout, VkPipeline *graphic_pipeline, VkViewport *viewport);
+bool vulkan_create_command_pool(VkDevice device, struct queue_family_indices queue_family_indices, VkCommandPool *command_pool);
+bool vulkan_create_command_buffer(VkDevice device, VkCommandPool command_pool, VkCommandBuffer *command_buffer);
 
 #endif

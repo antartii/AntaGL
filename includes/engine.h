@@ -34,6 +34,12 @@ typedef struct engine
     VkPipelineLayout pipeline_layout;
     VkPipeline graphic_pipeline;
 
+    struct queue_family_indices queue_family_indices;
+
+    VkCommandPool command_pool;
+    VkCommandBuffer command_buffer;
+    VkViewport viewport;
+
     uint32_t swapchain_images_count;
     VkImage *swapchain_images;
 
