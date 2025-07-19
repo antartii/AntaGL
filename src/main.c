@@ -11,24 +11,10 @@ void run(engine_t engine)
         wl_display_dispatch(engine->window->display);
         #endif
 
-        vulkan_draw_frame(
-            engine->device,
-            &engine->swapchain,
-            engine->swapchain_image_views,
-            engine->swapchain_extent,
-            engine->swapchain_images,
-            engine->command_buffer,
-            engine->graphic_pipeline,
-            engine->viewport,
-            engine->graphic_queue,
-            engine->present_queue,
-            &engine->present_complete_semaphore, 
-            &engine->render_finished_semaphore,
-            &engine->draw_fence,
-            &engine->image_index);
+        vulkan_draw_frame(&engine->vulkan_context);
     }
 
-    vkDeviceWaitIdle(engine->device);   
+    vkDeviceWaitIdle(engine->vulkan_context.device);   
 }
 
 int main(const int argc, const char **argv, const char **env)
@@ -40,7 +26,7 @@ int main(const int argc, const char **argv, const char **env)
     };
     const char *app_name = "AntaApplication";
 
-    engine_t engine = engine_create(app_name, app_version);
+    engine_t engine = engine_create(app_name, app_version, 800, 600);
 
     run(engine);
 

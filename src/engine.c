@@ -12,39 +12,12 @@ static int engine_error(engine_t engine, const char *msg, const bool is_critical
         return ENGINE_ERROR_CODE_DEFAULT;
 }
 
-static void vulkan_cleanup(engine_t engine)
-{
-    if (engine->device) {
-        if (engine->present_complete_semaphore) vkDestroySemaphore(engine->device, engine->present_complete_semaphore, NULL);
-        if (engine->render_finished_semaphore) vkDestroySemaphore(engine->device, engine->render_finished_semaphore, NULL);
-        if (engine->draw_fence) vkDestroyFence(engine->device, engine->draw_fence, NULL);
-        if (engine->command_buffer) vkFreeCommandBuffers(engine->device, engine->command_pool, 1, &engine->command_buffer);
-        if (engine->command_pool) vkDestroyCommandPool(engine->device, engine->command_pool, NULL);
-        if (engine->graphic_pipeline) vkDestroyPipeline(engine->device, engine->graphic_pipeline, NULL);
-        if (engine->pipeline_layout) vkDestroyPipelineLayout(engine->device, engine->pipeline_layout, NULL);
-        if (engine->swapchain) vkDestroySwapchainKHR(engine->device, engine->swapchain, NULL);
-        if (engine->swapchain_images) {
-            for (uint32_t i = 0; i < engine->swapchain_images_count; ++i)
-                vkDestroyImageView(engine->device, engine->swapchain_image_views[i], NULL);
-            free(engine->swapchain_images);
-        }
-        vkDestroyDevice(engine->device, NULL);
-    }
-    if (engine->instance) {
-        #ifdef DEBUG
-        if (engine->debug_messenger) engine->vulkan_extensions_functions.vkDestroyDebugUtilsMessengerEXT(engine->instance, engine->debug_messenger, NULL);
-        #endif
-        if (engine->surface) vkDestroySurfaceKHR(engine->instance, engine->surface, NULL);
-        vkDestroyInstance(engine->instance, NULL);
-    }
-}
-
 void engine_cleanup(engine_t engine)
 {
     if (!engine)
         return;
 
-    vulkan_cleanup(engine);
+    vulkan_cleanup(&engine->vulkan_context);
 
     end_wayland(engine->window);
 
@@ -52,45 +25,38 @@ void engine_cleanup(engine_t engine)
     free(engine);
 }
 
-static void engine_init(engine_t engine, const char *application_name, uint32_t application_version)
+static bool engine_init_window(window_t window)
+{
+    #ifdef WAYLAND_SURFACE
+    return init_wayland(window);
+    #else
+    return false;
+    #endif
+}
+
+static void engine_init(engine_t engine, const char *application_name, uint32_t application_version, int window_width, int window_height)
 {
     if (!engine)
         engine_error(engine, "engine_init: engine_t engine is NULL\n", true);
 
-    // todo: find a better way to set them manually + do resize
-    engine->window->width = 800;
-    engine->window->height = 600;
+    engine->window->width = window_width;
+    engine->window->height = window_height;
 
-    if (!init_wayland(engine->window))
-        engine_error(engine, "engine_init: wayland window couldn't be inited\n", true);
-    
-    if (!vulkan_create_instance(&engine->instance, ENGINE_NAME, ENGINE_VERSION, application_name, application_version)
-        || !vulkan_init_extensions_functions(engine->instance, &engine->vulkan_extensions_functions)
-        #ifdef DEBUG
-        || !vulkan_setup_debug_messenger(engine->instance, &engine->debug_messenger, engine->vulkan_extensions_functions.vkCreateDebugUtilsMessengerEXT)
-        #endif
-        || !vulkan_create_surface(engine->instance, engine->window, &engine->surface)
-        || !vulkan_pick_physical_device(engine->instance, &engine->physical_device)
-        || !vulkan_create_logical_device(engine->physical_device, engine->surface, &engine->device, &engine->graphic_queue, &engine->present_queue, &engine->queue_family_indices)
-        || !vulkan_create_swapchain(engine->physical_device, engine->device, engine->surface, engine->window, engine->queue_family_indices, &engine->swapchain, &engine->swapchain_image_format, &engine->swapchain_extent, &engine->swapchain_images_count, &engine->swapchain_images)
-        || !vulkan_create_image_view(engine->device, engine->swapchain_image_format, engine->swapchain_images_count, engine->swapchain_images, &engine->swapchain_image_views)
-        || !vulkan_create_graphic_pipeline(engine->device, engine->swapchain_extent, engine->swapchain_image_format, &engine->pipeline_layout, &engine->graphic_pipeline, &engine->viewport)
-        || !vulkan_create_command_pool(engine->device, engine->queue_family_indices, &engine->command_pool)
-        || !vulkan_create_command_buffer(engine->device, engine->command_pool, &engine->command_buffer)
-        || !vulkan_create_sync_objects(engine->device, &engine->present_complete_semaphore, &engine->render_finished_semaphore, &engine->draw_fence)
-    )
+    if (!engine_init_window(engine->window))
+        engine_error(engine, "engine_init: window couldn't be inited\n", true);
+
+    if (!vulkan_init(&engine->vulkan_context, engine->window, ENGINE_NAME, ENGINE_VERSION, application_name, application_version))
         engine_error(engine, "engine_init: failed to init the engine\n", true);
 }
 
-engine_t engine_create(const char *application_name, const struct version application_version)
+engine_t engine_create(const char *application_name, const struct version application_version, int window_width, int window_height)
 {
     engine_t engine = calloc(1, sizeof(struct engine));
     engine->window = calloc(1, sizeof(struct window));
     
-
     if (!engine)
         engine_error(engine, "engine_create: engine_t engine is NULL\n", true);
-    engine_init(engine, application_name, VK_MAKE_VERSION(application_version.major, application_version.minor, application_version.patch));
+    engine_init(engine, application_name, VK_MAKE_VERSION(application_version.major, application_version.minor, application_version.patch), window_width, window_height);
 
     return engine;
 }

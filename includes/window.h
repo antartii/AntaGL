@@ -39,4 +39,6 @@ typedef struct window
     #endif
 } * window_t;
 
+void init_window(window_t window);
+
 #endif

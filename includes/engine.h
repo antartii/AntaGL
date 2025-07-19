@@ -21,42 +21,12 @@
 
 typedef struct engine
 {
-    // window related
     window_t window;
 
-    // vulkan related
-    // todo store everything vulkan related into a vulkan wrapper struct
-    VkInstance instance;
-    VkDebugUtilsMessengerEXT debug_messenger;
-    VkPhysicalDevice physical_device;
-    VkDevice device;
-    VkSurfaceKHR surface;
-    VkFormat swapchain_image_format;
-    VkExtent2D swapchain_extent;
-    VkSwapchainKHR swapchain;
-    VkPipelineLayout pipeline_layout;
-    VkPipeline graphic_pipeline;
-    VkCommandPool command_pool;
-    VkCommandBuffer command_buffer;
-    VkViewport viewport;
-    uint32_t swapchain_images_count;
-    VkImage *swapchain_images;
-    VkImageView *swapchain_image_views;
-
-    struct queue_family_indices queue_family_indices;
-    VkQueue graphic_queue;
-    VkQueue present_queue;
-
-    VkSemaphore present_complete_semaphore;
-    VkSemaphore render_finished_semaphore;
-    VkFence draw_fence;
-
-    uint32_t image_index;
-
-    struct vulkan_extensions_functions vulkan_extensions_functions;
+    struct vulkan_context vulkan_context;
 } * engine_t;
 
 void engine_cleanup(engine_t engine);
-engine_t engine_create(const char *application_name, const struct version application_version);
+engine_t engine_create(const char *application_name, const struct version application_version, int window_width, int window_height);
 
 #endif
