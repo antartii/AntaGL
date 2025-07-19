@@ -291,6 +291,7 @@ bool vulkan_create_logical_device(VkPhysicalDevice physical_device, VkSurfaceKHR
     VkPhysicalDeviceVulkan13Features physical_device_features_13 = {
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
         .dynamicRendering = true,
+        .synchronization2 = true,
         .pNext = &physical_device_features_extended,
     };
 
@@ -325,7 +326,7 @@ bool vulkan_create_logical_device(VkPhysicalDevice physical_device, VkSurfaceKHR
     if (!is_graphic_also_present)
         vkGetDeviceQueue(*device, queue_family_indices->present, 0, present_queue);
     else
-        present_queue = graphic_queue;
+        *present_queue = *graphic_queue;
     return true;
 }
 
@@ -705,14 +706,14 @@ static void transition_image_layout(
             .baseMipLevel = 0,
             .levelCount = 1,
             .baseArrayLayer = 0,
-            .baseArrayLayer = 1,
+            .layerCount = 1,
         }
     };
 
     VkDependencyInfo dependency_info = {
         .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
         .pNext = NULL,
-        .dependencyFlags = {0},
+        .dependencyFlags = 0,
         .imageMemoryBarrierCount = 1,
         .pImageMemoryBarriers = &barrier
     };
@@ -720,14 +721,22 @@ static void transition_image_layout(
     vkCmdPipelineBarrier2(command_buffer, &dependency_info);
 }
 
-void record_command_buffer(uint32_t image_index, VkImageView *swapchain_image_views, VkExtent2D swapchain_extent, VkImage *swapchain_images, VkCommandBuffer command_buffer, VkPipeline graphic_pipeline, VkViewport viewport, VkExtent2D swapchain_extent)
+static void vulkan_record_command_buffer(uint32_t image_index,
+    VkImageView *swapchain_image_views,
+    VkExtent2D swapchain_extent,
+    VkImage *swapchain_images,
+    VkCommandBuffer command_buffer,
+    VkPipeline graphic_pipeline,
+    VkViewport viewport)
 {
     VkCommandBufferBeginInfo begin_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
         .flags = 0,
         .pNext = NULL,
-        .pInheritanceInfo = NULL
+        .pInheritanceInfo = NULL,
     };
+
+    vkBeginCommandBuffer(command_buffer, &begin_info);
 
     transition_image_layout(image_index, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, swapchain_images, command_buffer);
     
@@ -740,6 +749,7 @@ void record_command_buffer(uint32_t image_index, VkImageView *swapchain_image_vi
         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
         .pNext = NULL,
         .imageView = swapchain_image_views[image_index],
+        .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
         .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
         .clearValue = clear_color
@@ -762,11 +772,87 @@ void record_command_buffer(uint32_t image_index, VkImageView *swapchain_image_vi
     vkCmdBeginRendering(command_buffer, &rendering_info);
     vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphic_pipeline);
     vkCmdSetViewport(command_buffer, 0, 1, &viewport);
-    vkCmdSetScissor(command_buffer, 0, 1, &swapchain_extent);
+    VkRect2D scissor = {
+        .extent = swapchain_extent,
+        .offset = {
+            .x = 0,
+            .y = 0
+        }
+    };
+    vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 
     vkCmdDraw(command_buffer, 3, 1, 0, 0);
     vkCmdEndRendering(command_buffer);
 
-    transition_image_layout(image_index, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, 0, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT);
+    transition_image_layout(image_index, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, 0, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, swapchain_images, command_buffer);
     vkEndCommandBuffer(command_buffer);
+}
+
+bool vulkan_create_sync_objects(VkDevice device, VkSemaphore *present_complete_semaphore, VkSemaphore *render_finished_semaphore, VkFence *draw_fence)
+{
+    VkSemaphoreCreateInfo semaphore_info = {
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+        .pNext = NULL,
+        .flags = 0
+    };
+
+    VkFenceCreateInfo fence_info = {
+        .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+        .pNext = NULL,
+        .flags = 0
+    };
+
+    return vkCreateSemaphore(device, &semaphore_info, NULL, present_complete_semaphore) == VK_SUCCESS
+        && vkCreateSemaphore(device, &semaphore_info, NULL, render_finished_semaphore) == VK_SUCCESS
+        && vkCreateFence(device, &fence_info, NULL, draw_fence) == VK_SUCCESS;
+}
+
+void vulkan_draw_frame(VkDevice device,
+    VkSwapchainKHR *swapchain,
+    VkImageView *swapchain_image_views,
+    VkExtent2D swapchain_extent,
+    VkImage *swapchain_images,
+    VkCommandBuffer command_buffer,
+    VkPipeline graphic_pipeline, 
+    VkViewport viewport,
+    VkQueue graphic_queue,
+    VkQueue present_queue,
+    VkSemaphore *present_complete_semaphore,
+    VkSemaphore *render_finished_semaphore,
+    VkFence *draw_fence,
+    uint32_t *image_index)
+{
+    VkResult result = vkAcquireNextImageKHR(device, *swapchain, UINT64_MAX, *present_complete_semaphore, NULL, image_index);
+
+    vulkan_record_command_buffer(*image_index, swapchain_image_views, swapchain_extent, swapchain_images, command_buffer, graphic_pipeline, viewport);
+    vkResetFences(device, 1, draw_fence);
+
+    VkPipelineStageFlags wait_destination_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    const VkSubmitInfo submit_info = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .pNext = NULL,
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores = present_complete_semaphore,
+        .signalSemaphoreCount = 1,
+        .pSignalSemaphores = render_finished_semaphore,
+        .pWaitDstStageMask = &wait_destination_stage_mask,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &command_buffer
+    };
+
+    vkQueueSubmit(graphic_queue, 1, &submit_info, *draw_fence);
+    while (VK_TIMEOUT == vkWaitForFences(device, 1, draw_fence, VK_TRUE, UINT64_MAX));
+
+    const VkPresentInfoKHR present_info = {
+        .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+        .pNext = NULL,
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores = render_finished_semaphore,
+        .swapchainCount = 1,
+        .pSwapchains = swapchain,
+        .pImageIndices = image_index,
+        .pResults = NULL,
+    };
+
+    result = vkQueuePresentKHR(present_queue, &present_info);
 }

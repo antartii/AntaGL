@@ -15,6 +15,9 @@ static int engine_error(engine_t engine, const char *msg, const bool is_critical
 static void vulkan_cleanup(engine_t engine)
 {
     if (engine->device) {
+        if (engine->present_complete_semaphore) vkDestroySemaphore(engine->device, engine->present_complete_semaphore, NULL);
+        if (engine->render_finished_semaphore) vkDestroySemaphore(engine->device, engine->render_finished_semaphore, NULL);
+        if (engine->draw_fence) vkDestroyFence(engine->device, engine->draw_fence, NULL);
         if (engine->command_buffer) vkFreeCommandBuffers(engine->device, engine->command_pool, 1, &engine->command_buffer);
         if (engine->command_pool) vkDestroyCommandPool(engine->device, engine->command_pool, NULL);
         if (engine->graphic_pipeline) vkDestroyPipeline(engine->device, engine->graphic_pipeline, NULL);
@@ -74,6 +77,7 @@ static void engine_init(engine_t engine, const char *application_name, uint32_t 
         || !vulkan_create_graphic_pipeline(engine->device, engine->swapchain_extent, engine->swapchain_image_format, &engine->pipeline_layout, &engine->graphic_pipeline, &engine->viewport)
         || !vulkan_create_command_pool(engine->device, engine->queue_family_indices, &engine->command_pool)
         || !vulkan_create_command_buffer(engine->device, engine->command_pool, &engine->command_buffer)
+        || !vulkan_create_sync_objects(engine->device, &engine->present_complete_semaphore, &engine->render_finished_semaphore, &engine->draw_fence)
     )
         engine_error(engine, "engine_init: failed to init the engine\n", true);
 }

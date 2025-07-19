@@ -58,5 +58,20 @@ bool vulkan_create_image_view(VkDevice device, VkFormat swapchain_image_format, 
 bool vulkan_create_graphic_pipeline(VkDevice device, VkExtent2D swapchain_extent, VkFormat swapchain_image_format, VkPipelineLayout *pipeline_layout, VkPipeline *graphic_pipeline, VkViewport *viewport);
 bool vulkan_create_command_pool(VkDevice device, struct queue_family_indices queue_family_indices, VkCommandPool *command_pool);
 bool vulkan_create_command_buffer(VkDevice device, VkCommandPool command_pool, VkCommandBuffer *command_buffer);
+bool vulkan_create_sync_objects(VkDevice device, VkSemaphore *present_complete_semaphore, VkSemaphore *render_finished_semaphore, VkFence *draw_fence);
+void vulkan_draw_frame(VkDevice device,
+    VkSwapchainKHR *swapchain,
+    VkImageView *swapchain_image_views,
+    VkExtent2D swapchain_extent,
+    VkImage *swapchain_images,
+    VkCommandBuffer command_buffer,
+    VkPipeline graphic_pipeline, 
+    VkViewport viewport,
+    VkQueue graphic_queue,
+    VkQueue present_queue,
+    VkSemaphore *present_complete_semaphore,
+    VkSemaphore *render_finished_semaphore,
+    VkFence *draw_fence,
+    uint32_t *image_index);
 
 #endif

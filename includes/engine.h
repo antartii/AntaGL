@@ -21,8 +21,11 @@
 
 typedef struct engine
 {
+    // window related
     window_t window;
 
+    // vulkan related
+    // todo store everything vulkan related into a vulkan wrapper struct
     VkInstance instance;
     VkDebugUtilsMessengerEXT debug_messenger;
     VkPhysicalDevice physical_device;
@@ -33,20 +36,22 @@ typedef struct engine
     VkSwapchainKHR swapchain;
     VkPipelineLayout pipeline_layout;
     VkPipeline graphic_pipeline;
-
-    struct queue_family_indices queue_family_indices;
-
     VkCommandPool command_pool;
     VkCommandBuffer command_buffer;
     VkViewport viewport;
-
     uint32_t swapchain_images_count;
     VkImage *swapchain_images;
-
     VkImageView *swapchain_image_views;
 
+    struct queue_family_indices queue_family_indices;
     VkQueue graphic_queue;
     VkQueue present_queue;
+
+    VkSemaphore present_complete_semaphore;
+    VkSemaphore render_finished_semaphore;
+    VkFence draw_fence;
+
+    uint32_t image_index;
 
     struct vulkan_extensions_functions vulkan_extensions_functions;
 } * engine_t;
