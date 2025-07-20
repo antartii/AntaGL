@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <inttypes.h>
+#include <string.h>
 
 #ifdef WAYLAND_SURFACE
 #include "wayland.h"
@@ -13,6 +14,7 @@
 #endif
 
 #include <vulkan/vulkan.h>
+#include "window.h"
 #include "utils.h"
 #include "vulkan_extension_wrapper.h"
 

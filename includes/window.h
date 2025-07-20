@@ -4,9 +4,12 @@
 #ifdef WAYLAND_SURFACE
 #include <wayland-client.h>
 #include <linux/input-event-codes.h>
+
 #include "xdg-shell-client-protocol.h"
 #include "utils.h"
 #endif
+
+#include <stdbool.h>
 
 enum mouse_buttons {
     MOUSE_BTN_LEFT = 1 << 0,
@@ -22,10 +25,17 @@ enum mouse_state_bitmask {
 
 #define WINDOW_EDGE_MARGIN 5
 enum window_edge_bitmask {
+    #ifdef WAYLAND_SURFACE
     WINDOW_EDGE_RIGHT = XDG_TOPLEVEL_RESIZE_EDGE_RIGHT,
     WINDOW_EDGE_LEFT = XDG_TOPLEVEL_RESIZE_EDGE_LEFT,
     WINDOW_EDGE_TOP = XDG_TOPLEVEL_RESIZE_EDGE_TOP,
     WINDOW_EDGE_BOTTOM = XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM
+    #else
+    WINDOW_EDGE_RIGHT = 1 << 0,
+    WINDOW_EDGE_LEFT = 1 << 1,
+    WINDOW_EDGE_TOP = 1 << 2,
+    WINDOW_EDGE_BOTTOM = 1 << 3
+    #endif
 };
 
 typedef struct mouse {

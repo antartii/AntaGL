@@ -5,7 +5,13 @@ set(MAIN_TARGET AntaEngine)
 
 project(&{MAIN_TARGET} VERSION 1.0)
 
-file(GLOB_RECURSE LIB_SOURCES "${CMAKE_SOURCE_DIR}/lib/xdg_shell_protocol/*.c") # for wayland
+option(ENABLE_WAYLAND "Enable Wayland support" OFF)
+
+if (ENABLE_WAYLAND)
+    file(GLOB_RECURSE LIB_SOURCES "${CMAKE_SOURCE_DIR}/lib/xdg_shell_protocol/*.c") # for wayland
+else()
+    set(LIB_SOURCES)
+endif()
 
 include_directories(includes)
 add_executable(${MAIN_TARGET}
@@ -16,52 +22,52 @@ add_executable(${MAIN_TARGET}
     src/engine.c
     src/vulkan_wrapper.c
     src/vulkan_extension_wrapper.c
-    src/wayland.c # for wayland
+    $<$<BOOL:${ENABLE_WAYLAND}>:${CMAKE_SOURCE_DIR}/src/wayland.c>
 )
 
 find_package(Vulkan REQUIRED)
-find_package(PkgConfig REQUIRED) # for wayland
+target_link_libraries(${MAIN_TARGET} PRIVATE Vulkan::Vulkan)
 
-pkg_check_modules(WAYLAND REQUIRED wayland-client) # for wayland
+if (ENABLE_WAYLAND)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(WAYLAND REQUIRED wayland-client)
 
-target_include_directories(${MAIN_TARGET} PRIVATE
-    ${WAYLAND_INCLUDE_DIRS} # for wayland
-    "${CMAKE_SOURCE_DIR}/lib/xdg_shell_protocol" # for wayland
-)
+    target_include_directories(${MAIN_TARGET} PRIVATE
+        ${WAYLAND_INCLUDE_DIRS}
+        "${CMAKE_SOURCE_DIR}/lib/xdg_shell_protocol"
+    )
 
-target_link_libraries(${MAIN_TARGET} PRIVATE
-    Vulkan::Vulkan
-    ${WAYLAND_LIBRARIES} # for wayland
-)
+    target_link_libraries(${MAIN_TARGET} PRIVATE ${WAYLAND_LIBRARIES})
+    target_compile_options(${MAIN_TARGET} PRIVATE ${WAYLAND_CFLAGS_OTHER})
+    target_compile_definitions(${MAIN_TARGET} PRIVATE WAYLAND_SURFACE)
+endif()
 
-# for wayland
-target_compile_options(${MAIN_TARGET} PRIVATE ${WAYLAND_CFLAGS_OTHER})
-target_compile_definitions(${MAIN_TARGET} PRIVATE
-    WAYLAND_SURFACE
-    DEBUG)
+target_compile_definitions(${MAIN_TARGET} PRIVATE DEBUG)
 
-# for compiling shaders using slang
 function(add_slang_shader_target TARGET)
     cmake_parse_arguments(SHADER "" "" "SOURCES" ${ARGN})
     set(SHADERS_DIR ${CMAKE_CURRENT_LIST_DIR}/shaders)
-    set(SLANG_OUTPUT ${SHADERS_DIR}/slang.spv)
+    if(CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+        set(SHADERS_BUILD_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders")
+    else()
+        set(SHADERS_BUILD_DIR "${CMAKE_BINARY_DIR}/shaders")
+    endif()
+    set(SLANG_OUTPUT ${SHADERS_BUILD_DIR}/slang.spv)
     set(ENTRY_POINTS -entry vertMain -entry fragMain)
 
-    file(MAKE_DIRECTORY ${SHADERS_DIR})
+    file(MAKE_DIRECTORY ${SHADERS_BUILD_DIR})
 
     if(NOT SLANGC_EXECUTABLE)
         set(SLANGC_EXECUTABLE $ENV{SLANGC_EXECUTABLE})
     endif()
 
-    message(STATUS "Slang command: ${SLANGC_EXECUTABLE} ${SHADER_SOURCES} -target spirv -profile spirv_1_4 -emit-spirv-directly -fvk-use-entrypoint-name ${ENTRY_POINTS} -o slang.spv")
-
     add_custom_command(
         OUTPUT ${SLANG_OUTPUT}
-        COMMAND ${SLANGC_EXECUTABLE} ${SHADER_SOURCES} -target spirv -profile spirv_1_4 -emit-spirv-directly -fvk-use-entrypoint-name ${ENTRY_POINTS} -o slang.spv
-
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${SHADERS_BUILD_DIR}
+        COMMAND ${SLANGC_EXECUTABLE} ${SHADER_SOURCES} -target spirv -profile spirv_1_4 -emit-spirv-directly -fvk-use-entrypoint-name ${ENTRY_POINTS} -o ${SLANG_OUTPUT}
         WORKING_DIRECTORY ${SHADERS_DIR}
         DEPENDS ${SHADER_SOURCES}
-        COMMENT "Compiling Slang Shaders"
+        COMMENT "Compiling Slang shaders"
         VERBATIM
     )
     add_custom_target(${TARGET} DEPENDS ${SLANG_OUTPUT})

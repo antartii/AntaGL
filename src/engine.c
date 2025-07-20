@@ -19,7 +19,9 @@ void engine_cleanup(engine_t engine)
 
     vulkan_cleanup(&engine->vulkan_context);
 
+    #ifdef WAYLAND_SURFACE
     end_wayland(engine->window);
+    #endif
 
     free(engine->window);
     free(engine);

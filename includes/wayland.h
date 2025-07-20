@@ -13,7 +13,10 @@
 #include <errno.h>
 
 #include "window.h"
+
+#ifdef WAYLAND_SURFACE
 #include "xdg-shell-client-protocol.h"
+#endif
 
 extern const char *wayland_instance_extensions[];
 
