@@ -6,6 +6,9 @@
 #include <stdint.h>
 #include <unistd.h>
 
+#define UNDEFINED -1
+#define NONE 0
+
 /**
  * @brief Convert an integer to a string
  * 
