@@ -26,6 +26,7 @@ extern const char *validation_layers[];
 #define SHADERS_FILE_PATH "shaders/slang.spv"
 #define SHADER_VERTEX_ENTRY_POINT "vertMain"
 #define SHADER_FRAGMENT_ENTRY_POINT "fragMain"
+#define MAX_FRAMES_IN_FLIGHT 2
 
 struct queue_family_indices {
     uint32_t graphic;
@@ -44,7 +45,7 @@ typedef struct vulkan_context {
     VkPipelineLayout pipeline_layout;
     VkPipeline graphic_pipeline;
     VkCommandPool command_pool;
-    VkCommandBuffer command_buffer;
+    VkCommandBuffer *command_buffers;
     VkViewport viewport;
     uint32_t swapchain_images_count;
     VkImage *swapchain_images;
@@ -54,9 +55,10 @@ typedef struct vulkan_context {
     VkQueue graphic_queue;
     VkQueue present_queue;
 
-    VkSemaphore present_complete_semaphore;
-    VkSemaphore render_finished_semaphore;
-    VkFence draw_fence;
+    VkSemaphore *present_complete_semaphores;
+    VkSemaphore *render_finished_semaphores;
+    VkFence *in_fligh_fences;
+    uint32_t current_frame;
 
     uint32_t image_index;
 
