@@ -43,6 +43,7 @@ typedef struct window
     int height;
     int state_bitmask;
     struct mouse mouse;
+    bool framebuffer_resized;
 
     #ifdef WAYLAND_SURFACE
     struct wl_display *display;

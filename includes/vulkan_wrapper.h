@@ -65,7 +65,7 @@ typedef struct vulkan_context {
     struct vulkan_extensions_functions vulkan_extensions_functions;
 } * vulkan_context_t;
 
-void vulkan_draw_frame(vulkan_context_t vulkan_context);
+bool vulkan_draw_frame(vulkan_context_t vulkan_context, window_t window);
 
 bool vulkan_init(vulkan_context_t vulkan_context,
     window_t window,

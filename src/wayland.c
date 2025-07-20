@@ -19,8 +19,11 @@ static void xdg_toplevel_handle_configure(void *data, struct xdg_toplevel *xdg_t
     if (width == 0 || height == 0)
         return;
 
-    window->height = height;
-    window->width = width;
+    if (window->width != width || window->height != height) {
+        window->width = width;
+        window->height = height;
+        window->framebuffer_resized = true;
+    }
 }
 
 static const struct xdg_toplevel_listener xdg_toplevel_listener = {
@@ -113,12 +116,21 @@ static void wl_pointer_button(void *data, struct wl_pointer *wl_pointer, uint32_
     }
 }
 
+static void wl_pointer_frame(void *data, struct wl_pointer *wl_pointer)
+{
+}
+
+static void wl_pointer_axis(void *data, struct wl_pointer *wl_pointer, uint32_t time, uint32_t axis, wl_fixed_t value)
+{
+}
+
 static const struct wl_pointer_listener wl_pointer_listener = {
     .enter = wl_pointer_enter,
     .leave = wl_pointer_leave,
     .motion = wl_pointer_motion,
-    .button = wl_pointer_button
-    // todo: axis == scroll wheel or touchpad scroll
+    .button = wl_pointer_button,
+    .frame = wl_pointer_frame,
+    .axis = wl_pointer_axis
 };
 
 static void wl_seat_capabilities(void *data, struct wl_seat *wl_seat, uint32_t capabilities)

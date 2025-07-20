@@ -11,7 +11,8 @@ void run(engine_t engine)
         wl_display_dispatch(engine->window->display);
         #endif
 
-        vulkan_draw_frame(&engine->vulkan_context);
+        if (!vulkan_draw_frame(&engine->vulkan_context, engine->window))
+            break;
     }
 
     vkDeviceWaitIdle(engine->vulkan_context.device);   

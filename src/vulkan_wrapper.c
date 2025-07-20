@@ -808,10 +808,48 @@ static bool vulkan_create_sync_objects(vulkan_context_t context)
     return true;
 }
 
-void vulkan_draw_frame(vulkan_context_t context)
+static void vulkan_cleanup_swapchain(vulkan_context_t context)
+{
+    if (context->swapchain_image_views) {
+        for (uint32_t i = 0; i < context->swapchain_images_count; ++i)
+            vkDestroyImageView(context->device, context->swapchain_image_views[i], NULL);
+        free(context->swapchain_image_views);
+    }
+    if (context->swapchain_images) free(context->swapchain_images);
+    if (context->swapchain) vkDestroySwapchainKHR(context->device, context->swapchain, NULL);
+}
+
+void vulkan_recreate_swapchain(vulkan_context_t context, window_t window)
+{
+    vkDeviceWaitIdle(context->device);
+    vulkan_cleanup_swapchain(context);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+        vkDestroySemaphore(context->device, context->present_complete_semaphores[i], NULL);
+        vkDestroySemaphore(context->device, context->render_finished_semaphores[i], NULL);
+        vkDestroyFence(context->device, context->in_fligh_fences[i], NULL);
+    }
+    vulkan_create_sync_objects(context);
+
+    vulkan_create_swapchain(context, window);
+    vulkan_create_image_view(context);
+    context->current_frame = 0;
+}
+
+bool vulkan_draw_frame(vulkan_context_t context, window_t window)
 {
     while (VK_TIMEOUT == vkWaitForFences(context->device, 1, &context->in_fligh_fences[context->current_frame], VK_TRUE, UINT64_MAX));
-    vkAcquireNextImageKHR(context->device, context->swapchain, UINT64_MAX, context->present_complete_semaphores[context->current_frame], NULL, &context->image_index);
+    VkResult result = vkAcquireNextImageKHR(context->device, context->swapchain, UINT64_MAX, context->present_complete_semaphores[context->current_frame], NULL, &context->image_index);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || window->framebuffer_resized) {
+        vulkan_recreate_swapchain(context, window);
+        window->framebuffer_resized = false;
+        return true;
+    }
+    if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+        write(STDERR_FILENO, "Failed to acquire swapchain image\n", 35);
+        return false;
+    }
     vkResetFences(context->device, 1, &context->in_fligh_fences[context->current_frame]);
 
     vkResetCommandBuffer(context->command_buffers[context->current_frame], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
@@ -849,9 +887,17 @@ void vulkan_draw_frame(vulkan_context_t context)
         .pResults = NULL,
     };
 
-    vkQueuePresentKHR(context->present_queue, &present_info);
+    result = vkQueuePresentKHR(context->present_queue, &present_info);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+        printf("here\n");
+        window->framebuffer_resized = false;
+        vulkan_recreate_swapchain(context, window);
+    } else if (result != VK_SUCCESS) {
+        write(STDERR_FILENO, "Failed to present swapchain image\n", 35);
+    }
 
     context->current_frame = (context->current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
+    return true;
 }
 
 bool vulkan_init(vulkan_context_t context,
@@ -880,6 +926,7 @@ bool vulkan_init(vulkan_context_t context,
 void vulkan_cleanup(vulkan_context_t context)
 {
     if (context->device) {
+        vulkan_cleanup_swapchain(context);
         if (context->present_complete_semaphores) {
             for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
                 vkDestroySemaphore(context->device, context->present_complete_semaphores[i], NULL);
@@ -899,12 +946,6 @@ void vulkan_cleanup(vulkan_context_t context)
         if (context->command_pool) vkDestroyCommandPool(context->device, context->command_pool, NULL);
         if (context->graphic_pipeline) vkDestroyPipeline(context->device, context->graphic_pipeline, NULL);
         if (context->pipeline_layout) vkDestroyPipelineLayout(context->device, context->pipeline_layout, NULL);
-        if (context->swapchain) vkDestroySwapchainKHR(context->device, context->swapchain, NULL);
-        if (context->swapchain_images) {
-            for (uint32_t i = 0; i < context->swapchain_images_count; ++i)
-                vkDestroyImageView(context->device, context->swapchain_image_views[i], NULL);
-            free(context->swapchain_images);
-        }
         vkDestroyDevice(context->device, NULL);
     }
     if (context->instance) {
