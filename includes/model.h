@@ -13,7 +13,7 @@ typedef struct model {
     VkDeviceMemory vertex_memory;
 } * model_t;
 
-model_t model_create(vulkan_context_t context, vec2 *pos, vec3 *colors, uint32_t vertices_count);
+model_t model_create(vulkan_context_t context, vec2 *pos, vec3 color, uint32_t vertices_count);
 void model_destroy(vulkan_context_t context, model_t model);
 
 #endif

@@ -349,7 +349,7 @@ static bool vulkan_create_surface(vulkan_context_t context, window_t window)
 static VkSurfaceFormatKHR vulkan_choose_swapchain_surface_format(const VkSurfaceFormatKHR *available_formats, const uint32_t available_formats_count)
 {
     for (uint32_t i = 0; i < available_formats_count; ++i) {
-        if (available_formats[i].format == VK_FORMAT_B8G8R8A8_SRGB && available_formats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+        if (available_formats[i].format == VK_FORMAT_R8G8B8A8_SRGB && available_formats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
             return available_formats[i];
     }
     return available_formats[0];

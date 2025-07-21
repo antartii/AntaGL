@@ -11,13 +11,9 @@ void run(engine_t engine)
         {0.5f, 0.5f},
         {-0.5f, 0.5f}
     };
-    vec3 colors[] = {
-        {1.0f, 0.0f, 0.0f},
-        {0.0f, 1.0f, 0.0f},
-        {0.0f, 0.0f, 1.0f}
-    };
+    vec3 color = {1.0f, 1.0f, 1.0f};
 
-    model_t triangle = model_create(&engine->vulkan_context, pos, colors, 3);
+    model_t triangle = model_create(&engine->vulkan_context, pos, color, 3);
 
     while (!engine->window->should_close) {
         #ifdef WAYLAND_SURFACE

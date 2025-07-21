@@ -3,14 +3,14 @@
 
 #include <unistd.h>
 
-model_t model_create(vulkan_context_t context, vec2 *pos, vec3 *colors, uint32_t vertices_count)
+model_t model_create(vulkan_context_t context, vec2 *pos, vec3 color, uint32_t vertices_count)
 {
     model_t model = calloc(1, sizeof(struct model));
     model->vertices_count = vertices_count;
     model->vertices = malloc(sizeof(struct vertex) * vertices_count);
 
     for (uint32_t i = 0; i < vertices_count; ++i) {
-        glm_vec2(colors[i], model->vertices[i].color);
+        glm_vec3(color, model->vertices[i].color);
         glm_vec2(pos[i], model->vertices[i].pos);
     }
 
