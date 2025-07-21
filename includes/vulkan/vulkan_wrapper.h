@@ -19,6 +19,7 @@
 #include "utils.h"
 #include "vulkan_extension_wrapper.h"
 #include "vertex.h"
+#include "model.h"
 
 #ifdef DEBUG
 #define ENGINE_VALIDATION_LAYERS_COUNT 1
@@ -36,9 +37,6 @@ struct queue_family_indices {
     uint32_t graphic;
     uint32_t present;
 };
-
-extern const struct vertex vertices_test[];
-extern const uint32_t vertices_test_count;
 
 typedef struct vulkan_context {
     VkInstance instance;
@@ -70,13 +68,9 @@ typedef struct vulkan_context {
     uint32_t image_index;
 
     struct vulkan_extensions_functions vulkan_extensions_functions;
-
-    VkBuffer vertex_buffer_test;
-    VkDeviceMemory vertex_memory_test;
-
 } * vulkan_context_t;
 
-bool vulkan_draw_frame(vulkan_context_t vulkan_context, window_t window);
+bool vulkan_draw_frame(vulkan_context_t vulkan_context, window_t window, model_t *models, uint32_t models_count);
 
 bool vulkan_init(vulkan_context_t vulkan_context,
     window_t window,
@@ -86,5 +80,6 @@ bool vulkan_init(vulkan_context_t vulkan_context,
     uint32_t application_version);
 
 void vulkan_cleanup(vulkan_context_t vulkan_context);
+bool vulkan_create_vertex_buffer(vulkan_context_t context, model_t model);
 
 #endif

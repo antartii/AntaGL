@@ -52,11 +52,30 @@ static void engine_init(engine_t engine, const char *application_name, uint32_t 
         engine_error(engine, "engine_init: failed to init the engine\n", true);
 }
 
-engine_t engine_create(const char *application_name, const struct version application_version, int window_width, int window_height)
+bool engine_draw(engine_t engine, model_t model)
+{
+    if (engine->models_to_draw_count >= engine->max_models_to_draw)
+        return false;
+
+    engine->models_to_draw[engine->models_to_draw_count++] = model;
+    return true;
+}
+
+bool engine_display(engine_t engine)
+{
+    bool result = vulkan_draw_frame(&engine->vulkan_context, engine->window, engine->models_to_draw, engine->models_to_draw_count);
+    engine->models_to_draw_count = 0;
+
+    return result;
+}
+
+engine_t engine_create(const char *application_name, const struct version application_version, int window_width, int window_height, uint32_t max_models_to_draw)
 {
     engine_t engine = calloc(1, sizeof(struct engine));
     engine->window = calloc(1, sizeof(struct window));
-    
+    engine->models_to_draw = calloc(max_models_to_draw, sizeof(model_t));
+    engine->max_models_to_draw = max_models_to_draw;
+
     if (!engine)
         engine_error(engine, "engine_create: engine_t engine is NULL\n", true);
     engine_init(engine, application_name, VK_MAKE_VERSION(application_version.major, application_version.minor, application_version.patch), window_width, window_height);

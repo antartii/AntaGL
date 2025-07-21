@@ -6,14 +6,6 @@ const char *validation_layers[] = {
 };
 #endif
 
-const struct vertex vertices_test[] = {
-    (struct vertex) {.pos = (vec2) {0.0f, -0.5f}, .color = (vec3) {1.0f, 0.0f, 0.0f}},
-    (struct vertex) {.pos = (vec2) {0.5f, 0.5f}, .color = (vec3) {0.0f, 1.0f, 0.0f}},
-    (struct vertex) {.pos = (vec2) {-0.5f, 0.5f}, .color = (vec3) {0.0f, 0.0f, 1.0f}}
-};
-
-const uint32_t vertices_test_count = 3;
-
 static VKAPI_ATTR VkBool32 VKAPI_CALL vulkan_debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type, const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *)
 {
     if (severity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
@@ -735,7 +727,7 @@ static void transition_image_layout(
     vkCmdPipelineBarrier2(command_buffer, &dependency_info);
 }
 
-static void vulkan_record_command_buffer(vulkan_context_t context)
+static void vulkan_record_command_buffer(vulkan_context_t context, model_t *models, uint32_t models_count)
 {
     VkCommandBufferBeginInfo begin_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -780,10 +772,6 @@ static void vulkan_record_command_buffer(vulkan_context_t context)
     vkCmdBeginRendering(context->command_buffers[context->current_frame], &rendering_info);
     vkCmdBindPipeline(context->command_buffers[context->current_frame], VK_PIPELINE_BIND_POINT_GRAPHICS, context->graphic_pipeline);
 
-    // test
-    VkDeviceSize size = 0;
-    vkCmdBindVertexBuffers(context->command_buffers[context->current_frame], 0, 1, &context->vertex_buffer_test, &size);
-    // end test
 
     vkCmdSetViewport(context->command_buffers[context->current_frame], 0, 1, &context->viewport);
     VkRect2D scissor = {
@@ -795,7 +783,12 @@ static void vulkan_record_command_buffer(vulkan_context_t context)
     };
     vkCmdSetScissor(context->command_buffers[context->current_frame], 0, 1, &scissor);
 
-    vkCmdDraw(context->command_buffers[context->current_frame], 3, 1, 0, 0);
+    for (uint32_t i = 0; i < models_count; ++i) {
+        VkDeviceSize offset = 0;
+        vkCmdBindVertexBuffers(context->command_buffers[context->current_frame], 0, 1, &(models[i]->vertex_buffer), &offset);
+        vkCmdDraw(context->command_buffers[context->current_frame], models[i]->vertices_count, 1, 0, 0);
+    }
+
     vkCmdEndRendering(context->command_buffers[context->current_frame]);
 
     transition_image_layout(context->image_index, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, 0, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, context->swapchain_images, context->command_buffers[context->current_frame]);
@@ -858,7 +851,7 @@ void vulkan_recreate_swapchain(vulkan_context_t context, window_t window)
     context->current_frame = 0;
 }
 
-bool vulkan_draw_frame(vulkan_context_t context, window_t window)
+bool vulkan_draw_frame(vulkan_context_t context, window_t window, model_t *models, uint32_t models_count)
 {
     while (VK_TIMEOUT == vkWaitForFences(context->device, 1, &context->in_fligh_fences[context->current_frame], VK_TRUE, UINT64_MAX));
     VkResult result = vkAcquireNextImageKHR(context->device, context->swapchain, UINT64_MAX, context->present_complete_semaphores[context->current_frame], NULL, &context->image_index);
@@ -875,7 +868,7 @@ bool vulkan_draw_frame(vulkan_context_t context, window_t window)
     vkResetFences(context->device, 1, &context->in_fligh_fences[context->current_frame]);
 
     vkResetCommandBuffer(context->command_buffers[context->current_frame], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
-    vulkan_record_command_buffer(context);
+    vulkan_record_command_buffer(context, models, models_count);
 
     VkPipelineStageFlags wait_destination_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     const VkSubmitInfo submit_info = {
@@ -932,24 +925,24 @@ static bool vulkan_find_memory_type(vulkan_context_t context, uint32_t type_filt
     return false;
 }
 
-static bool vulkan_create_vertex_buffer(vulkan_context_t context)
+bool vulkan_create_vertex_buffer(vulkan_context_t context, model_t model)
 {
     VkBufferCreateInfo buffer_info = {
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
         .pNext = NULL,
         .flags = 0,
-        .size = sizeof(vertices_test[0]) * vertices_test_count,
+        .size = sizeof(struct vertex) * model->vertices_count,
         .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
         .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
         .queueFamilyIndexCount = 0,
         .pQueueFamilyIndices = NULL
     };
 
-    if (vkCreateBuffer(context->device, &buffer_info, NULL, &context->vertex_buffer_test) != VK_SUCCESS)
+    if (vkCreateBuffer(context->device, &buffer_info, NULL, &model->vertex_buffer) != VK_SUCCESS)
         return false;
 
     VkMemoryRequirements memory_requirements;
-    vkGetBufferMemoryRequirements(context->device, context->vertex_buffer_test, &memory_requirements);
+    vkGetBufferMemoryRequirements(context->device, model->vertex_buffer, &memory_requirements);
 
     uint32_t memory_type_index;
     if (!vulkan_find_memory_type(context, memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &memory_type_index))
@@ -962,14 +955,14 @@ static bool vulkan_create_vertex_buffer(vulkan_context_t context)
         .memoryTypeIndex = memory_type_index
     };
 
-    if (vkAllocateMemory(context->device, &memory_allocate_info, NULL, &context->vertex_memory_test) != VK_SUCCESS
-        || vkBindBufferMemory(context->device, context->vertex_buffer_test, context->vertex_memory_test, 0) != VK_SUCCESS)
+    if (vkAllocateMemory(context->device, &memory_allocate_info, NULL, &model->vertex_memory) != VK_SUCCESS
+        || vkBindBufferMemory(context->device, model->vertex_buffer, model->vertex_memory, 0) != VK_SUCCESS)
         return false;
 
     void *data = NULL;
-    vkMapMemory(context->device, context->vertex_memory_test, 0, buffer_info.size, 0, &data);
-    memcpy(data, vertices_test, buffer_info.size);
-    vkUnmapMemory(context->device, context->vertex_memory_test);
+    vkMapMemory(context->device, model->vertex_memory, 0, buffer_info.size, 0, &data);
+    memcpy(data, model->vertices, buffer_info.size);
+    vkUnmapMemory(context->device, model->vertex_memory);
 
     return true;
 }
@@ -993,7 +986,6 @@ bool vulkan_init(vulkan_context_t context,
         && vulkan_create_image_view(context)
         && vulkan_create_graphic_pipeline(context)
         && vulkan_create_command_pool(context)
-        && vulkan_create_vertex_buffer(context)
         && vulkan_create_command_buffers(context)
         && vulkan_create_sync_objects(context);
 }
@@ -1002,9 +994,6 @@ void vulkan_cleanup(vulkan_context_t context)
 {
     if (context->device) {
         vulkan_cleanup_swapchain(context);
-
-        if (context->vertex_buffer_test) vkDestroyBuffer(context->device, context->vertex_buffer_test, NULL);
-        if (context->vertex_memory_test) vkFreeMemory(context->device, context->vertex_memory_test, NULL);
 
         if (context->present_complete_semaphores) {
             for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
