@@ -81,5 +81,6 @@ bool vulkan_init(vulkan_context_t vulkan_context,
 
 void vulkan_cleanup(vulkan_context_t vulkan_context);
 bool vulkan_create_vertex_buffer(vulkan_context_t context, model_t model);
+bool vulkan_create_index_buffer(vulkan_context_t context, model_t model, uint16_t *indices, uint32_t indices_count);
 
 #endif

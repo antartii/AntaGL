@@ -786,7 +786,8 @@ static void vulkan_record_command_buffer(vulkan_context_t context, model_t *mode
     for (uint32_t i = 0; i < models_count; ++i) {
         VkDeviceSize offset = 0;
         vkCmdBindVertexBuffers(context->command_buffers[context->current_frame], 0, 1, &(models[i]->vertex_buffer), &offset);
-        vkCmdDraw(context->command_buffers[context->current_frame], models[i]->vertices_count, 1, 0, 0);
+        vkCmdBindIndexBuffer(context->command_buffers[context->current_frame], models[i]->index_buffer, offset, VK_INDEX_TYPE_UINT16);
+        vkCmdDrawIndexed(context->command_buffers[context->current_frame], models[i]->indices_count, 1, 0, 0, 0);
     }
 
     vkCmdEndRendering(context->command_buffers[context->current_frame]);
@@ -999,6 +1000,29 @@ bool vulkan_copy_buffer(vulkan_context_t context, VkBuffer *src_buffer, VkBuffer
 
     vkQueueSubmit(context->graphic_queue, 1, &submit_info, NULL);
     vkQueueWaitIdle(context->graphic_queue);
+}
+
+bool vulkan_create_index_buffer(vulkan_context_t context, model_t model, uint16_t *indices, uint32_t indices_count)
+{
+    VkDeviceSize size = sizeof(uint16_t) * indices_count;
+
+    VkBuffer staging_buffer;
+    VkDeviceMemory staging_memory;
+
+    vulkan_create_buffer(context, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &staging_buffer, &staging_memory);
+    
+    void *data_staging;
+    vkMapMemory(context->device, staging_memory, 0, size, 0, &data_staging);
+    memcpy(data_staging, indices, size);
+    vkUnmapMemory(context->device, staging_memory);
+
+    vulkan_create_buffer(context, size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &model->index_buffer, &model->index_memory);
+    vulkan_copy_buffer(context, &staging_buffer, &model->index_buffer, size);
+
+    vkDestroyBuffer(context->device, staging_buffer, NULL);
+    vkFreeMemory(context->device, staging_memory, NULL);
+
+    return true;
 }
 
 bool vulkan_create_vertex_buffer(vulkan_context_t context, model_t model)
