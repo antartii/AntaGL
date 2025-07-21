@@ -2,7 +2,6 @@
 
 #include "utils.h"
 #include "engine.h"
-#include "wayland.h"
 
 void run(engine_t engine)
 {

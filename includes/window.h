@@ -6,6 +6,7 @@
 #include <linux/input-event-codes.h>
 
 #include "xdg-shell-client-protocol.h"
+#include "xdg-decoration-unstable-v1-client-protocol.h"
 #include "utils.h"
 #endif
 
@@ -54,6 +55,7 @@ typedef struct window
     int state_bitmask;
     struct mouse mouse;
     bool framebuffer_resized;
+    const char *title;
 
     #ifdef WAYLAND_SURFACE
     struct wl_display *display;
@@ -69,7 +71,11 @@ typedef struct window
 
     struct wl_seat *seat;
     struct wl_pointer *pointer;
+
+    //struct zxdg_decoration_manager_v1 *zxdg_decoration_manager;
+    //struct zxdg_toplevel_decoration_v1 *zxdg_toplevel_decoration;
     // todo do touchpad
+    // todo do context
     #endif
 } * window_t;
 

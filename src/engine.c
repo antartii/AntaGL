@@ -43,6 +43,7 @@ static void engine_init(engine_t engine, const char *application_name, uint32_t 
 
     engine->window->width = window_width;
     engine->window->height = window_height;
+    engine->window->title = application_name;
 
     if (!engine_init_window(engine->window))
         engine_error(engine, "engine_init: window couldn't be inited\n", true);

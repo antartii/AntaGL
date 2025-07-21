@@ -8,21 +8,25 @@ project(&{MAIN_TARGET} VERSION 1.0)
 option(ENABLE_WAYLAND "Enable Wayland support" OFF)
 
 if (ENABLE_WAYLAND)
-    file(GLOB_RECURSE LIB_SOURCES "${CMAKE_SOURCE_DIR}/lib/xdg_shell_protocol/*.c") # for wayland
+    file(GLOB_RECURSE LIB_SOURCES "${CMAKE_SOURCE_DIR}/lib/xdg_shell_protocol/*.c")
+    include_directories(includes/wayland)
 else()
     set(LIB_SOURCES)
 endif()
 
-include_directories(includes)
+include_directories(includes
+    includes/vulkan
+)
 add_executable(${MAIN_TARGET}
     ${LIB_SOURCES}
 
     src/main.c
     src/utils.c
     src/engine.c
-    src/vulkan_wrapper.c
-    src/vulkan_extension_wrapper.c
-    $<$<BOOL:${ENABLE_WAYLAND}>:${CMAKE_SOURCE_DIR}/src/wayland.c>
+    src/vertex.c
+    src/vulkan/vulkan_wrapper.c
+    src/vulkan/vulkan_extension_wrapper.c
+    $<$<BOOL:${ENABLE_WAYLAND}>:${CMAKE_SOURCE_DIR}/src/wayland/wayland.c>
 )
 
 find_package(Vulkan REQUIRED)

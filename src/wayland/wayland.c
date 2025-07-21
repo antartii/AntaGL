@@ -158,6 +158,18 @@ static const struct wl_seat_listener wl_seat_listener = {
     .name = wl_seat_name
 };
 
+static void zxdg_toplevel_decoration_v1_configure(void *data, struct zxdg_toplevel_decoration_v1 *zxdg_toplevel_decoration_v1, uint32_t mode)
+{
+    if (mode != ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE) {
+        write(STDERR_FILENO, "Compositor doesn't support server side decoration\n", 51);
+        return;
+    }
+}
+
+static const struct zxdg_toplevel_decoration_v1_listener zxdg_toplevel_decoration_v1_listener = {
+    .configure = zxdg_toplevel_decoration_v1_configure
+};
+
 static void registry_handle(void *data, struct wl_registry *registry, uint32_t name, const char *interface, uint32_t version)
 {
     // printf("interface: '%s', version: %d, name: %d\n", interface, version, name);
@@ -172,6 +184,8 @@ static void registry_handle(void *data, struct wl_registry *registry, uint32_t n
     } else if (strcmp(interface, wl_seat_interface.name) == 0) {
         win->seat = wl_registry_bind(registry, name, &wl_seat_interface, 7);
         wl_seat_add_listener(win->seat, &wl_seat_listener, win);
+    } else if (strcmp(interface, zxdg_decoration_manager_v1_interface.name) == 0) {
+        // win->zxdg_decoration_manager = wl_registry_bind(registry, name, &zxdg_decoration_manager_v1_interface, 1);
     }
 }
 
@@ -201,8 +215,13 @@ bool init_wayland(window_t window)
     window->xdg_surface = xdg_wm_base_get_xdg_surface(window->xdg_wm_base, window->surface);
     xdg_surface_add_listener(window->xdg_surface, &xdg_surface_listener, window);
     window->xdg_toplevel = xdg_surface_get_toplevel(window->xdg_surface);
-    xdg_toplevel_set_title(window->xdg_toplevel, "Test");
+    xdg_toplevel_set_title(window->xdg_toplevel, window->title);
     xdg_toplevel_add_listener(window->xdg_toplevel, &xdg_toplevel_listener, window);
+    
+    /*if (window->zxdg_decoration_manager) {
+        window->zxdg_toplevel_decoration = zxdg_decoration_manager_v1_get_toplevel_decoration(window->zxdg_decoration_manager, window->xdg_toplevel);
+        zxdg_toplevel_decoration_v1_add_listener(window->zxdg_toplevel_decoration, &zxdg_toplevel_decoration_v1_listener, window);
+    }*/
     wl_surface_commit(window->surface);
 
     return true;

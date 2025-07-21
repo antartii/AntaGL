@@ -6,6 +6,14 @@ const char *validation_layers[] = {
 };
 #endif
 
+const struct vertex vertices_test[] = {
+    (struct vertex) {.pos = (vec2) {0.0f, -0.5f}, .color = (vec3) {1.0f, 0.0f, 0.0f}},
+    (struct vertex) {.pos = (vec2) {0.5f, 0.5f}, .color = (vec3) {0.0f, 1.0f, 0.0f}},
+    (struct vertex) {.pos = (vec2) {-0.5f, 0.5f}, .color = (vec3) {0.0f, 0.0f, 1.0f}}
+};
+
+const uint32_t vertices_test_count = 3;
+
 static VKAPI_ATTR VkBool32 VKAPI_CALL vulkan_debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type, const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *)
 {
     if (severity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
@@ -530,9 +538,23 @@ static bool vulkan_create_graphic_pipeline(vulkan_context_t context)
         .pDynamicStates = dynamic_states
     };
 
+    uint32_t vertex_binding_descriptions_count;
+    vertex_get_binding_description(&vertex_binding_descriptions_count, NULL);
+    VkVertexInputBindingDescription vertex_binding_descriptions[vertex_binding_descriptions_count];
+    vertex_get_binding_description(&vertex_binding_descriptions_count, vertex_binding_descriptions);
+
+    uint32_t vertex_attribute_descriptions_count;
+    vertex_get_attribute_description(&vertex_attribute_descriptions_count, NULL);
+    VkVertexInputAttributeDescription vertex_attribute_descriptions[vertex_attribute_descriptions_count];
+    vertex_get_attribute_description(&vertex_attribute_descriptions_count, vertex_attribute_descriptions);
+
     VkPipelineVertexInputStateCreateInfo vertex_input_info = {
         .pNext = NULL,
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+        .vertexBindingDescriptionCount = vertex_binding_descriptions_count,
+        .pVertexBindingDescriptions = vertex_binding_descriptions,
+        .vertexAttributeDescriptionCount = vertex_attribute_descriptions_count,
+        .pVertexAttributeDescriptions = vertex_attribute_descriptions
     };
 
     VkPipelineInputAssemblyStateCreateInfo input_assembly_info = {
@@ -713,13 +735,7 @@ static void transition_image_layout(
     vkCmdPipelineBarrier2(command_buffer, &dependency_info);
 }
 
-static void vulkan_record_command_buffer(uint32_t image_index,
-    VkImageView *swapchain_image_views,
-    VkExtent2D swapchain_extent,
-    VkImage *swapchain_images,
-    VkCommandBuffer command_buffer,
-    VkPipeline graphic_pipeline,
-    VkViewport viewport)
+static void vulkan_record_command_buffer(vulkan_context_t context)
 {
     VkCommandBufferBeginInfo begin_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -728,9 +744,9 @@ static void vulkan_record_command_buffer(uint32_t image_index,
         .pInheritanceInfo = NULL,
     };
 
-    vkBeginCommandBuffer(command_buffer, &begin_info);
+    vkBeginCommandBuffer(context->command_buffers[context->current_frame], &begin_info);
 
-    transition_image_layout(image_index, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, swapchain_images, command_buffer);
+    transition_image_layout(context->image_index, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, context->swapchain_images, context->command_buffers[context->current_frame]);
     
     VkClearValue clear_color = {
         .color = {
@@ -740,7 +756,7 @@ static void vulkan_record_command_buffer(uint32_t image_index,
     VkRenderingAttachmentInfo attachment_info = {
         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
         .pNext = NULL,
-        .imageView = swapchain_image_views[image_index],
+        .imageView = context->swapchain_image_views[context->image_index],
         .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
         .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -754,30 +770,36 @@ static void vulkan_record_command_buffer(uint32_t image_index,
         .renderArea = {
             .offset.x = 0,
             .offset.y = 0,
-            .extent = swapchain_extent
+            .extent = context->swapchain_extent
         },
         .layerCount = 1,
         .colorAttachmentCount = 1,
         .pColorAttachments = &attachment_info
     };
 
-    vkCmdBeginRendering(command_buffer, &rendering_info);
-    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphic_pipeline);
-    vkCmdSetViewport(command_buffer, 0, 1, &viewport);
+    vkCmdBeginRendering(context->command_buffers[context->current_frame], &rendering_info);
+    vkCmdBindPipeline(context->command_buffers[context->current_frame], VK_PIPELINE_BIND_POINT_GRAPHICS, context->graphic_pipeline);
+
+    // test
+    VkDeviceSize size = 0;
+    vkCmdBindVertexBuffers(context->command_buffers[context->current_frame], 0, 1, &context->vertex_buffer_test, &size);
+    // end test
+
+    vkCmdSetViewport(context->command_buffers[context->current_frame], 0, 1, &context->viewport);
     VkRect2D scissor = {
-        .extent = swapchain_extent,
+        .extent = context->swapchain_extent,
         .offset = {
             .x = 0,
             .y = 0
         }
     };
-    vkCmdSetScissor(command_buffer, 0, 1, &scissor);
+    vkCmdSetScissor(context->command_buffers[context->current_frame], 0, 1, &scissor);
 
-    vkCmdDraw(command_buffer, 3, 1, 0, 0);
-    vkCmdEndRendering(command_buffer);
+    vkCmdDraw(context->command_buffers[context->current_frame], 3, 1, 0, 0);
+    vkCmdEndRendering(context->command_buffers[context->current_frame]);
 
-    transition_image_layout(image_index, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, 0, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, swapchain_images, command_buffer);
-    vkEndCommandBuffer(command_buffer);
+    transition_image_layout(context->image_index, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, 0, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, context->swapchain_images, context->command_buffers[context->current_frame]);
+    vkEndCommandBuffer(context->command_buffers[context->current_frame]);
 }
 
 static bool vulkan_create_sync_objects(vulkan_context_t context)
@@ -853,13 +875,7 @@ bool vulkan_draw_frame(vulkan_context_t context, window_t window)
     vkResetFences(context->device, 1, &context->in_fligh_fences[context->current_frame]);
 
     vkResetCommandBuffer(context->command_buffers[context->current_frame], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
-    vulkan_record_command_buffer(context->image_index,
-        context->swapchain_image_views,
-        context->swapchain_extent,
-        context->swapchain_images,
-        context->command_buffers[context->current_frame],
-        context->graphic_pipeline,
-        context->viewport);
+    vulkan_record_command_buffer(context);
 
     VkPipelineStageFlags wait_destination_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     const VkSubmitInfo submit_info = {
@@ -900,6 +916,64 @@ bool vulkan_draw_frame(vulkan_context_t context, window_t window)
     return true;
 }
 
+static bool vulkan_find_memory_type(vulkan_context_t context, uint32_t type_filter, VkMemoryPropertyFlags properties, uint32_t *memory_type)
+{
+    VkPhysicalDeviceMemoryProperties memory_properties;
+    vkGetPhysicalDeviceMemoryProperties(context->physical_device, &memory_properties);
+
+    for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++) {
+        if ((type_filter & (1 << i)) && (memory_properties.memoryTypes[i].propertyFlags & properties) == properties) {
+            *memory_type = i;
+            return true;
+        }
+    }
+
+    write(STDERR_FILENO, "failed to find suitable memory type\n", 37);
+    return false;
+}
+
+static bool vulkan_create_vertex_buffer(vulkan_context_t context)
+{
+    VkBufferCreateInfo buffer_info = {
+        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+        .pNext = NULL,
+        .flags = 0,
+        .size = sizeof(vertices_test[0]) * vertices_test_count,
+        .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        .queueFamilyIndexCount = 0,
+        .pQueueFamilyIndices = NULL
+    };
+
+    if (vkCreateBuffer(context->device, &buffer_info, NULL, &context->vertex_buffer_test) != VK_SUCCESS)
+        return false;
+
+    VkMemoryRequirements memory_requirements;
+    vkGetBufferMemoryRequirements(context->device, context->vertex_buffer_test, &memory_requirements);
+
+    uint32_t memory_type_index;
+    if (!vulkan_find_memory_type(context, memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &memory_type_index))
+        return false;
+
+    VkMemoryAllocateInfo memory_allocate_info = {
+        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+        .pNext = NULL,
+        .allocationSize = memory_requirements.size,
+        .memoryTypeIndex = memory_type_index
+    };
+
+    if (vkAllocateMemory(context->device, &memory_allocate_info, NULL, &context->vertex_memory_test) != VK_SUCCESS
+        || vkBindBufferMemory(context->device, context->vertex_buffer_test, context->vertex_memory_test, 0) != VK_SUCCESS)
+        return false;
+
+    void *data = NULL;
+    vkMapMemory(context->device, context->vertex_memory_test, 0, buffer_info.size, 0, &data);
+    memcpy(data, vertices_test, buffer_info.size);
+    vkUnmapMemory(context->device, context->vertex_memory_test);
+
+    return true;
+}
+
 bool vulkan_init(vulkan_context_t context,
     window_t window,
     const char *engine_name,
@@ -919,6 +993,7 @@ bool vulkan_init(vulkan_context_t context,
         && vulkan_create_image_view(context)
         && vulkan_create_graphic_pipeline(context)
         && vulkan_create_command_pool(context)
+        && vulkan_create_vertex_buffer(context)
         && vulkan_create_command_buffers(context)
         && vulkan_create_sync_objects(context);
 }
@@ -927,6 +1002,10 @@ void vulkan_cleanup(vulkan_context_t context)
 {
     if (context->device) {
         vulkan_cleanup_swapchain(context);
+
+        if (context->vertex_buffer_test) vkDestroyBuffer(context->device, context->vertex_buffer_test, NULL);
+        if (context->vertex_memory_test) vkFreeMemory(context->device, context->vertex_memory_test, NULL);
+
         if (context->present_complete_semaphores) {
             for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
                 vkDestroySemaphore(context->device, context->present_complete_semaphores[i], NULL);
