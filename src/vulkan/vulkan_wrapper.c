@@ -925,27 +925,26 @@ static bool vulkan_find_memory_type(vulkan_context_t context, uint32_t type_filt
     return false;
 }
 
-bool vulkan_create_vertex_buffer(vulkan_context_t context, model_t model)
+static bool vulkan_create_buffer(vulkan_context_t context, VkDeviceSize size, VkBufferUsageFlags buffer_usage, VkMemoryPropertyFlags memory_properties, VkBuffer *buffer, VkDeviceMemory *memory)
 {
     VkBufferCreateInfo buffer_info = {
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
         .pNext = NULL,
         .flags = 0,
-        .size = sizeof(struct vertex) * model->vertices_count,
-        .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        .size = size,
+        .usage = buffer_usage,
         .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
         .queueFamilyIndexCount = 0,
         .pQueueFamilyIndices = NULL
     };
 
-    if (vkCreateBuffer(context->device, &buffer_info, NULL, &model->vertex_buffer) != VK_SUCCESS)
+    if (vkCreateBuffer(context->device, &buffer_info, NULL, buffer) != VK_SUCCESS)
         return false;
-
     VkMemoryRequirements memory_requirements;
-    vkGetBufferMemoryRequirements(context->device, model->vertex_buffer, &memory_requirements);
+    vkGetBufferMemoryRequirements(context->device, *buffer, &memory_requirements);
 
     uint32_t memory_type_index;
-    if (!vulkan_find_memory_type(context, memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &memory_type_index))
+    if (!vulkan_find_memory_type(context, memory_requirements.memoryTypeBits, memory_properties, &memory_type_index))
         return false;
 
     VkMemoryAllocateInfo memory_allocate_info = {
@@ -955,14 +954,71 @@ bool vulkan_create_vertex_buffer(vulkan_context_t context, model_t model)
         .memoryTypeIndex = memory_type_index
     };
 
-    if (vkAllocateMemory(context->device, &memory_allocate_info, NULL, &model->vertex_memory) != VK_SUCCESS
-        || vkBindBufferMemory(context->device, model->vertex_buffer, model->vertex_memory, 0) != VK_SUCCESS)
+    if (vkAllocateMemory(context->device, &memory_allocate_info, NULL, memory) != VK_SUCCESS
+        || vkBindBufferMemory(context->device, *buffer, *memory, 0) != VK_SUCCESS)
         return false;
+    return true;
+}
 
-    void *data = NULL;
-    vkMapMemory(context->device, model->vertex_memory, 0, buffer_info.size, 0, &data);
-    memcpy(data, model->vertices, buffer_info.size);
-    vkUnmapMemory(context->device, model->vertex_memory);
+bool vulkan_copy_buffer(vulkan_context_t context, VkBuffer *src_buffer, VkBuffer *dst_buffer, VkDeviceSize size)
+{
+    VkCommandBufferAllocateInfo alloc_info = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .pNext = NULL,
+        .commandBufferCount = 1,
+        .commandPool = context->command_pool,
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY
+    };
+
+    VkCommandBuffer command_copy_buffer;
+    vkAllocateCommandBuffers(context->device, &alloc_info, &command_copy_buffer);
+
+    VkCommandBufferBeginInfo begin_info = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .pNext = NULL,
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+    };
+
+    vkBeginCommandBuffer(command_copy_buffer, &begin_info);
+
+    VkBufferCopy copy_region = {
+        .srcOffset = 0,
+        .dstOffset = 0,
+        .size = size
+    };
+
+    vkCmdCopyBuffer(command_copy_buffer, *src_buffer, *dst_buffer, 1, &copy_region);
+    vkEndCommandBuffer(command_copy_buffer);
+
+    VkSubmitInfo submit_info = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .pNext = NULL,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &command_copy_buffer
+    };
+
+    vkQueueSubmit(context->graphic_queue, 1, &submit_info, NULL);
+    vkQueueWaitIdle(context->graphic_queue);
+}
+
+bool vulkan_create_vertex_buffer(vulkan_context_t context, model_t model)
+{
+    VkDeviceSize size = sizeof(struct vertex) * model->vertices_count;
+
+    VkBuffer staging_buffer;
+    VkDeviceMemory staging_memory;
+
+    vulkan_create_buffer(context, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &staging_buffer, &staging_memory);
+
+    void *data_staging;
+    vkMapMemory(context->device, staging_memory, 0, size, 0, &data_staging);
+    memcpy(data_staging, model->vertices, size);
+    vkUnmapMemory(context->device, staging_memory);
+
+    vulkan_create_buffer(context, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &model->vertex_buffer, &model->vertex_memory);
+    vulkan_copy_buffer(context, &staging_buffer, &model->vertex_buffer, size);
+    vkDestroyBuffer(context->device, staging_buffer, NULL);
+    vkFreeMemory(context->device, staging_memory, NULL);
 
     return true;
 }
