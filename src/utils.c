@@ -39,6 +39,11 @@ int max_int(int val, int max)
     return val > max ? val : max;
 }
 
+uint32_t get_file_size(const char *file_name)
+{
+    
+}
+
 char *read_file(const char *file_name, uint32_t *code_size)
 {
     FILE *file = fopen(file_name, "rb");

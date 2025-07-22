@@ -6,15 +6,18 @@
 
 void run(engine_t engine)
 {
-    vec2 pos[] = {
-        {-0.5f, -0.5f},
-        {0.5f, -0.5f},
+    vec2 pos = {-0.5f, -0.5f};
+    vec2 size = {1.0f, 1.0f};
+    vec3 color = {1.0f, 1.0f, 1.0f};
+
+    model_t rectangle = model_create_rectangle(&engine->vulkan_context, pos, size, color);
+    
+    mat3x2 tri_pos = {
+        {0.0f, -0.5f},
         {0.5f, 0.5f},
         {-0.5f, 0.5f}
     };
-    vec3 color = {1.0f, 1.0f, 1.0f};
-
-    model_t rectangle = model_create_rectangle(&engine->vulkan_context, pos, color);
+    model_t triangle = model_create_triangle(&engine->vulkan_context, tri_pos, color);
 
     while (!engine->window->should_close) {
         #ifdef WAYLAND_SURFACE
@@ -29,6 +32,7 @@ void run(engine_t engine)
 
     vkDeviceWaitIdle(engine->vulkan_context.device);
     model_destroy(&engine->vulkan_context, rectangle);
+    model_destroy(&engine->vulkan_context, triangle);
 }
 
 int main(const int argc, const char **argv, const char **env)

@@ -14,28 +14,30 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL vulkan_debug_callback(VkDebugUtilsMessageS
     return VK_FALSE;
 }
 
-static void vulkan_get_instance_extensions_names(const char ***extensions_names, uint32_t *extensions_count)
+static void vulkan_get_instance_extensions_names(const char **extensions_names, uint32_t *extensions_count)
 {
-    *extensions_count = 0;
+    if (!extensions_names) {
+        *extensions_count = 0;
 
-    #ifdef WAYLAND_SURFACE
-    *extensions_count += WAYLAND_EXTENSIONS_COUNT;
-    #endif
-    #ifdef DEBUG
-    (*extensions_count)++;
-    #endif
+        #ifdef WAYLAND_SURFACE
+        *extensions_count += WAYLAND_EXTENSIONS_COUNT;
+        #endif
+        #ifdef DEBUG
+        (*extensions_count)++;
+        #endif
+        return;
+    }
 
-    *extensions_names = malloc(sizeof(const char *) * (*extensions_count));
     int start = 0;
     int offset = 0;
 
     #ifdef WAYLAND_SURFACE
     while (offset < start + WAYLAND_EXTENSIONS_COUNT)
-        (*extensions_names)[offset++] = wayland_instance_extensions[offset - start];
+        extensions_names[offset++] = wayland_instance_extensions[offset - start];
     #endif
 
     #ifdef DEBUG
-    (*extensions_names)[offset++] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
+    extensions_names[offset++] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
     #endif
 }
 
@@ -88,17 +90,20 @@ static bool vulkan_check_instance_layers(const char **queried_layers, uint32_t l
     return result;
 }
 
-static void vulkan_get_instance_layers_names(const char ***layers_names, uint32_t *layers_count)
+static void vulkan_get_instance_layers_names(const char **layers_names, uint32_t *layers_count)
 {
+    if (!layers_names) {
+        #ifdef DEBUG
+        *layers_count = ENGINE_VALIDATION_LAYERS_COUNT;
+        #else
+        *layers_count = 0;
+        #endif
+        return;
+    }
+    
     #ifdef DEBUG
-    *layers_count = ENGINE_VALIDATION_LAYERS_COUNT;
-    *layers_names = malloc(sizeof(const char *) * (*layers_count));
-
     for (uint32_t i = 0; i < *layers_count; ++i)
-        (*layers_names)[i] = validation_layers[i];
-    #else
-    *layers_count = 0;
-    *layers_names = NULL;
+        layers_names[i] = validation_layers[i];
     #endif
 }
 
@@ -134,16 +139,22 @@ static bool vulkan_create_instance(vulkan_context_t context,
     };
 
     uint32_t extensions_count;
-    const char **extensions_names = NULL;
-    vulkan_get_instance_extensions_names(&extensions_names, &extensions_count);
+    vulkan_get_instance_extensions_names(NULL, &extensions_count);
+    const char **extensions_names = malloc(sizeof(char *) * extensions_count);
+    vulkan_get_instance_extensions_names(extensions_names, &extensions_count);
     if (!vulkan_check_instance_extensions(extensions_names, extensions_count))
         return false;
 
     uint32_t layers_count;
-    const char **layers_names = NULL;
-    vulkan_get_instance_layers_names(&layers_names, &layers_count);
-    if (!vulkan_check_instance_layers(layers_names, layers_count))
+    vulkan_get_instance_layers_names(NULL, &layers_count);
+    const char **layers_names = malloc(sizeof(char *) * layers_count);
+    vulkan_get_instance_layers_names(layers_names, &layers_count);
+    
+    if (!vulkan_check_instance_layers(layers_names, layers_count)) {
+        free(layers_names);
+        free(extensions_names);
         return false;
+    }
 
     VkInstanceCreateInfo instance_info = {
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
@@ -158,9 +169,7 @@ static bool vulkan_create_instance(vulkan_context_t context,
     VkBool32 result = vkCreateInstance(&instance_info, NULL, &context->instance);
     
     free(extensions_names);
-    #ifdef DEBUG
     free(layers_names);
-    #endif
 
     return result == VK_SUCCESS;
 }
@@ -493,7 +502,7 @@ static VkShaderModule vulkan_create_shader_module(VkDevice device, const char *c
 static bool vulkan_create_graphic_pipeline(vulkan_context_t context)
 {
     uint32_t code_size;
-    const char *shader_code = read_file(SHADERS_FILE_PATH, &code_size);
+    char *shader_code = read_file(SHADERS_FILE_PATH, &code_size);
 
     VkShaderModule shader_module = vulkan_create_shader_module(context->device, shader_code, code_size);
     
@@ -652,6 +661,7 @@ static bool vulkan_create_graphic_pipeline(vulkan_context_t context)
 
     VkResult result = vkCreateGraphicsPipelines(context->device, NULL, 1, &graphic_pipeline_info, NULL, &context->graphic_pipeline);
 
+    free(shader_code);
     vkDestroyShaderModule(context->device, shader_module, NULL);
 
     return result == VK_SUCCESS;
