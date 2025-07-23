@@ -86,7 +86,7 @@ static void wl_pointer_motion(void *data, struct wl_pointer *wl_pointer, uint32_
 
     //window->state_bitmask |= MOUSE_STATE_MOVING;
     window->mouse.pos_x = surface_x;
-    window->mouse.pos_y = surface_y;
+    window->mouse.pos_y = window->width - surface_y;
     window->mouse.edge_bitmask = mouse_get_edge(surface_x, surface_y, window->width, window->height);
 }
 
@@ -124,13 +124,38 @@ static void wl_pointer_axis(void *data, struct wl_pointer *wl_pointer, uint32_t 
 {
 }
 
+static void wl_pointer_axis_stop(void *data, struct wl_pointer *wl_pointer, uint32_t time, uint32_t axis)
+{
+}
+
+static void wl_pointer_axis_source(void *data, struct wl_pointer *wl_pointer, uint32_t axis_source)
+{
+}
+
+static void wl_pointer_axis_discrete(void *data, struct wl_pointer *wl_pointer, uint32_t axis, int32_t discrete)
+{
+}
+
+static void wl_pointer_axis_relative_direction(void *data, struct wl_pointer *wl_pointer, uint32_t axis, uint32_t direction)
+{
+}
+
+static void wl_pointer_axis_value_120(void *data, struct wl_pointer *wl_pointer, uint32_t axis, int32_t value120)
+{
+}
+
 static const struct wl_pointer_listener wl_pointer_listener = {
     .enter = wl_pointer_enter,
     .leave = wl_pointer_leave,
     .motion = wl_pointer_motion,
     .button = wl_pointer_button,
     .frame = wl_pointer_frame,
-    .axis = wl_pointer_axis
+    .axis = wl_pointer_axis,
+    .axis_stop = wl_pointer_axis_stop,
+    .axis_source = wl_pointer_axis_source,
+    .axis_discrete = wl_pointer_axis_discrete,
+    .axis_relative_direction = wl_pointer_axis_relative_direction,
+    .axis_value120 = wl_pointer_axis_value_120
 };
 
 static void wl_seat_capabilities(void *data, struct wl_seat *wl_seat, uint32_t capabilities)
@@ -161,7 +186,9 @@ static const struct wl_seat_listener wl_seat_listener = {
 static void zxdg_toplevel_decoration_v1_configure(void *data, struct zxdg_toplevel_decoration_v1 *zxdg_toplevel_decoration_v1, uint32_t mode)
 {
     if (mode != ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE) {
+        #ifdef DEBUG
         write(STDERR_FILENO, "Compositor doesn't support server side decoration\n", 51);
+        #endif
         return;
     }
 }
@@ -203,7 +230,9 @@ bool init_wayland(window_t window)
 {
     window->display = wl_display_connect(NULL);
     if (!window->display) {
+        #ifdef DEBUG
         write(STDERR_FILENO, "Couldn't connect the display\n", 30);
+        #endif
         return false;
     }
 

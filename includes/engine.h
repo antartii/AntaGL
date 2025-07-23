@@ -36,5 +36,8 @@ void engine_cleanup(engine_t engine);
 engine_t engine_create(const char *application_name, const struct version application_version, int window_width, int window_height, uint32_t max_objects_to_draw);
 bool engine_display(engine_t engine);
 bool engine_draw(engine_t engine, object_t object);
+void engine_poll_events(engine_t engine);
+bool engine_should_close(engine_t engine);
+void engine_end(engine_t engine);
 
 #endif

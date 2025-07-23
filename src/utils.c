@@ -58,8 +58,11 @@ char *read_file(const char *file_name, uint32_t *code_size)
         if (buffer)
             fread(buffer, 1, *code_size, file);
         fclose(file);
-    } else
+    }
+    #ifdef DEBUG 
+    else
         write(STDERR_FILENO, "Couldn't open the file\n", 24);
+    #endif
 
     return buffer;
 }

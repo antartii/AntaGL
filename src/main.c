@@ -6,7 +6,7 @@
 
 void run(engine_t engine)
 {
-    vec2 pos = {-0.5f, -0.5f};
+    vec2 pos = {-1.0f, -1.0f};
     vec2 size = {1.0f, 1.0f};
     vec3 color = {1.0f, 1.0f, 1.0f};
 
@@ -19,18 +19,16 @@ void run(engine_t engine)
     };
     object_t triangle = object_create_triangle(&engine->vulkan_context, tri_pos, color);
 
-    while (!engine->window->should_close) {
-        #ifdef WAYLAND_SURFACE
-        wl_display_dispatch(engine->window->display);
-        #endif
+    while (!engine_should_close(engine)) {
+        engine_poll_events(engine);
 
         engine_draw(engine, rectangle);
 
         if (!engine_display(engine))
             break;
     }
+    engine_end(engine);
 
-    vkDeviceWaitIdle(engine->vulkan_context.device);
     object_destroy(&engine->vulkan_context, rectangle);
     object_destroy(&engine->vulkan_context, triangle);
 }

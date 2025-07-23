@@ -2,7 +2,9 @@
 
 static int engine_error(engine_t engine, const char *msg, const bool is_critical)
 {
+    #ifdef DEBUG
     write(STDERR_FILENO, msg, strlen(msg));
+    #endif
 
     if (is_critical) {
         engine_cleanup(engine);
@@ -54,11 +56,32 @@ static void engine_init(engine_t engine, const char *application_name, uint32_t 
 
 bool engine_draw(engine_t engine, object_t object)
 {
-    if (engine->objects_to_draw_count >= engine->max_objects_to_draw)
+    if (engine->objects_to_draw_count >= engine->max_objects_to_draw) {
+        #ifdef DEBUG
+        write(STDERR_FILENO, "Cannot draw more objects\n", 26);
+        #endif
         return false;
+    }
 
     engine->objects_to_draw[engine->objects_to_draw_count++] = object;
     return true;
+}
+
+void engine_end(engine_t engine)
+{
+    vkDeviceWaitIdle(engine->vulkan_context.device);
+}
+
+void engine_poll_events(engine_t engine)
+{
+    #ifdef WAYLAND_SURFACE
+    wl_display_dispatch(engine->window->display);
+    #endif   
+}
+
+bool engine_should_close(engine_t engine)
+{
+    return engine->window->should_close;
 }
 
 bool engine_display(engine_t engine)

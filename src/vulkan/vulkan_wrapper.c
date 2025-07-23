@@ -882,7 +882,7 @@ void vulkan_update_proj(vulkan_context_t context, camera_t camera)
 {
     mat4 proj;
 
-    glm_perspective(glm_rad(45.0f), context->swapchain_extent.width / context->swapchain_extent.height, 1.0f, 10.0f, proj);
+    glm_perspective(camera->fov, context->swapchain_extent.width / context->swapchain_extent.height, camera->render_depth_range[0], camera->render_depth_range[1], proj);
     proj[1][1] *= -1;
 
     for (size_t i = 0; i <  MAX_FRAMES_IN_FLIGHT; ++i)
@@ -900,7 +900,9 @@ bool vulkan_draw_frame(vulkan_context_t context, window_t window, object_t *obje
         return true;
     }
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+        #ifdef DEBUG
         write(STDERR_FILENO, "Failed to acquire swapchain image\n", 35);
+        #endif
         return false;
     }
     vkResetFences(context->device, 1, &context->in_fligh_fences[context->current_frame]);
@@ -939,9 +941,12 @@ bool vulkan_draw_frame(vulkan_context_t context, window_t window, object_t *obje
         printf("here\n");
         window->framebuffer_resized = false;
         vulkan_recreate_swapchain(context, window);
-    } else if (result != VK_SUCCESS) {
+    }
+    #ifdef DEBUG 
+    else if (result != VK_SUCCESS) {
         write(STDERR_FILENO, "Failed to present swapchain image\n", 35);
     }
+    #endif
 
     context->current_frame = (context->current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
     return true;
@@ -959,7 +964,9 @@ static bool vulkan_find_memory_type(vulkan_context_t context, uint32_t type_filt
         }
     }
 
+    #ifdef DEBUG
     write(STDERR_FILENO, "failed to find suitable memory type\n", 37);
+    #endif
     return false;
 }
 
