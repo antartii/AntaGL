@@ -839,10 +839,10 @@ static void vulkan_cleanup_swapchain(vulkan_context_t context)
     if (context->swapchain_image_views) {
         for (uint32_t i = 0; i < context->swapchain_images_count; ++i)
             vkDestroyImageView(context->device, context->swapchain_image_views[i], NULL);
-        free(context->swapchain_image_views);
     }
-    if (context->swapchain_images) free(context->swapchain_images);
-    if (context->swapchain) vkDestroySwapchainKHR(context->device, context->swapchain, NULL);
+    free(context->swapchain_image_views);
+    free(context->swapchain_images);
+    vkDestroySwapchainKHR(context->device, context->swapchain, NULL);
 }
 
 void vulkan_recreate_swapchain(vulkan_context_t context, window_t window)
@@ -1225,50 +1225,53 @@ void vulkan_cleanup(vulkan_context_t context)
     if (context->device) {
         vulkan_cleanup_swapchain(context);
 
-        if (context->descriptor_pool) {
-            if (context->descriptor_sets) {
-                vkFreeDescriptorSets(context->device, context->descriptor_pool, MAX_FRAMES_IN_FLIGHT, context->descriptor_sets);
-                free(context->descriptor_sets);
-            }
-            vkDestroyDescriptorPool(context->device, context->descriptor_pool, NULL);
-        }
-        if (context->uniform_buffers_mapped)
-            free(context->uniform_buffers_mapped);
+        if (context->descriptor_pool) vkFreeDescriptorSets(context->device, context->descriptor_pool, MAX_FRAMES_IN_FLIGHT, context->descriptor_sets);
+        vkDestroyDescriptorPool(context->device, context->descriptor_pool, NULL);
+
         if (context->uniform_buffers && context->uniform_buffers_mapped) {
             for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
                 vkDestroyBuffer(context->device, context->uniform_buffers[i], NULL);
                 vkFreeMemory(context->device, context->uniform_buffers_memory[i], NULL);
             }
-            free(context->uniform_buffers);
-            free(context->uniform_buffers_memory);
         }
-        if (context->descriptor_set_layout) vkDestroyDescriptorSetLayout(context->device, context->descriptor_set_layout, NULL);
+
+        vkDestroyDescriptorSetLayout(context->device, context->descriptor_set_layout, NULL);
+
         if (context->present_complete_semaphores) {
             for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
                 vkDestroySemaphore(context->device, context->present_complete_semaphores[i], NULL);
-            free(context->present_complete_semaphores);
         }
         if (context->render_finished_semaphores) {
             for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
                 vkDestroySemaphore(context->device, context->render_finished_semaphores[i], NULL);
-            free(context->render_finished_semaphores);
-        }
+        }        
         if (context->in_fligh_fences) {
             for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
                 vkDestroyFence(context->device, context->in_fligh_fences[i], NULL);
-            free(context->in_fligh_fences);    
         }
-        if (context->command_buffers) vkFreeCommandBuffers(context->device, context->command_pool, MAX_FRAMES_IN_FLIGHT, context->command_buffers);
-        if (context->command_pool) vkDestroyCommandPool(context->device, context->command_pool, NULL);
-        if (context->graphic_pipeline) vkDestroyPipeline(context->device, context->graphic_pipeline, NULL);
-        if (context->pipeline_layout) vkDestroyPipelineLayout(context->device, context->pipeline_layout, NULL);
+
+        if (context->command_pool) {
+            vkFreeCommandBuffers(context->device, context->command_pool, MAX_FRAMES_IN_FLIGHT, context->command_buffers);
+            vkDestroyCommandPool(context->device, context->command_pool, NULL);
+        }
+        vkDestroyPipeline(context->device, context->graphic_pipeline, NULL);
+        vkDestroyPipelineLayout(context->device, context->pipeline_layout, NULL);
         vkDestroyDevice(context->device, NULL);
     }
-    if (context->instance) {
-        #ifdef DEBUG
-        if (context->debug_messenger) context->vulkan_extensions_functions.vkDestroyDebugUtilsMessengerEXT(context->instance, context->debug_messenger, NULL);
-        #endif
-        if (context->surface) vkDestroySurfaceKHR(context->instance, context->surface, NULL);
-        vkDestroyInstance(context->instance, NULL);
-    }
+
+    free(context->descriptor_sets);
+    free(context->uniform_buffers_mapped);
+    free(context->uniform_buffers);
+    free(context->uniform_buffers_memory);
+    free(context->present_complete_semaphores);
+    free(context->render_finished_semaphores);
+    free(context->in_fligh_fences);
+
+    #ifdef DEBUG
+    if (context->vulkan_extensions_functions.vkDestroyDebugUtilsMessengerEXT)
+        context->vulkan_extensions_functions.vkDestroyDebugUtilsMessengerEXT(context->instance, context->debug_messenger, NULL);
+    #endif
+
+    if (context->instance) vkDestroySurfaceKHR(context->instance, context->surface, NULL);
+    vkDestroyInstance(context->instance, NULL);
 }
