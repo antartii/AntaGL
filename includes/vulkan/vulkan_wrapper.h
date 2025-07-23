@@ -14,7 +14,10 @@
 #endif
 
 #include <vulkan/vulkan.h>
+#define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #include <cglm/cglm.h>
+#include <stdalign.h>
+#include <time.h>
 #include "window.h"
 #include "utils.h"
 #include "vulkan_extension_wrapper.h"
@@ -38,6 +41,12 @@ struct queue_family_indices {
     uint32_t present;
 };
 
+struct uniform_buffer {
+    alignas(16) mat4 model;
+    alignas(16) mat4 view;
+    alignas(16) mat4 proj;
+};
+
 typedef struct vulkan_context {
     VkInstance instance;
     VkDebugUtilsMessengerEXT debug_messenger;
@@ -55,6 +64,13 @@ typedef struct vulkan_context {
     uint32_t swapchain_images_count;
     VkImage *swapchain_images;
     VkImageView *swapchain_image_views;
+    VkDescriptorSetLayout descriptor_set_layout;
+    VkDescriptorPool descriptor_pool;
+    VkDescriptorSet *descriptor_sets;
+
+    VkBuffer *uniform_buffers;
+    VkDeviceMemory *uniform_buffers_memory;
+    void **uniform_buffers_mapped;
 
     struct queue_family_indices queue_family_indices;
     VkQueue graphic_queue;

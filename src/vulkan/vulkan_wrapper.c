@@ -590,7 +590,7 @@ static bool vulkan_create_graphic_pipeline(vulkan_context_t context)
         .rasterizerDiscardEnable = VK_FALSE,
         .polygonMode = VK_POLYGON_MODE_FILL,
         .cullMode = VK_CULL_MODE_BACK_BIT,
-        .frontFace = VK_FRONT_FACE_CLOCKWISE,
+        .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
         .depthBiasClamp = VK_FALSE,
         .depthBiasSlopeFactor = 1.0f,
         .lineWidth = 1.0f
@@ -623,8 +623,8 @@ static bool vulkan_create_graphic_pipeline(vulkan_context_t context)
         .flags = 0,
         .pNext = NULL,
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .setLayoutCount = 0,
-        .pSetLayouts = NULL,
+        .setLayoutCount = 1,
+        .pSetLayouts = &context->descriptor_set_layout,
         .pushConstantRangeCount = 0,
         .pPushConstantRanges = NULL
     };
@@ -781,8 +781,6 @@ static void vulkan_record_command_buffer(vulkan_context_t context, model_t *mode
 
     vkCmdBeginRendering(context->command_buffers[context->current_frame], &rendering_info);
     vkCmdBindPipeline(context->command_buffers[context->current_frame], VK_PIPELINE_BIND_POINT_GRAPHICS, context->graphic_pipeline);
-
-
     vkCmdSetViewport(context->command_buffers[context->current_frame], 0, 1, &context->viewport);
     VkRect2D scissor = {
         .extent = context->swapchain_extent,
@@ -792,6 +790,8 @@ static void vulkan_record_command_buffer(vulkan_context_t context, model_t *mode
         }
     };
     vkCmdSetScissor(context->command_buffers[context->current_frame], 0, 1, &scissor);
+
+    vkCmdBindDescriptorSets(context->command_buffers[context->current_frame], VK_PIPELINE_BIND_POINT_GRAPHICS, context->pipeline_layout, 0, 1, &(context->descriptor_sets[context->current_frame]), 0, NULL);
 
     for (uint32_t i = 0; i < models_count; ++i) {
         VkDeviceSize offset = 0;
@@ -862,6 +862,34 @@ void vulkan_recreate_swapchain(vulkan_context_t context, window_t window)
     context->current_frame = 0;
 }
 
+static void vulkan_update_uniform_buffer(vulkan_context_t context, uint32_t current_image)
+{
+    static struct timespec start_time = {0};
+
+    struct timespec current_time;
+    clock_gettime(CLOCK_MONOTONIC, &current_time);
+
+    if (start_time.tv_sec == 0 && start_time.tv_nsec == 0)
+        start_time = current_time;
+
+    double elapsed_sec = (current_time.tv_sec - start_time.tv_sec) + (current_time.tv_nsec - start_time.tv_nsec) / 1e9;
+    float time = (float) elapsed_sec;
+
+    mat4 identity;
+    glm_mat4_identity(identity);
+
+    struct uniform_buffer uniform_buffer = {0};
+    glm_mat4_identity(uniform_buffer.model);
+    glm_rotate(uniform_buffer.model, time * glm_rad(90.0f), (vec3) {0.0f, 0.0f, 1.0f});
+
+    glm_lookat((vec3) {2.0f, 2.0f, 2.0f}, (vec3) {0.0f, 0.0f, 0.0f}, (vec3) {0.0f, 0.0f, 1.0f}, uniform_buffer.view);
+
+    glm_perspective(glm_rad(45.0f), context->swapchain_extent.width / context->swapchain_extent.height, 1.0f, 10.0f, uniform_buffer.proj);
+    uniform_buffer.proj[1][1] *= -1;
+
+    memcpy(context->uniform_buffers_mapped[current_image], &uniform_buffer, sizeof(uniform_buffer));
+}
+
 bool vulkan_draw_frame(vulkan_context_t context, window_t window, model_t *models, uint32_t models_count)
 {
     while (VK_TIMEOUT == vkWaitForFences(context->device, 1, &context->in_fligh_fences[context->current_frame], VK_TRUE, UINT64_MAX));
@@ -880,6 +908,8 @@ bool vulkan_draw_frame(vulkan_context_t context, window_t window, model_t *model
 
     vkResetCommandBuffer(context->command_buffers[context->current_frame], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
     vulkan_record_command_buffer(context, models, models_count);
+
+    vulkan_update_uniform_buffer(context, context->current_frame);
 
     VkPipelineStageFlags wait_destination_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     const VkSubmitInfo submit_info = {
@@ -1057,6 +1087,112 @@ bool vulkan_create_vertex_buffer(vulkan_context_t context, model_t model)
     return true;
 }
 
+static bool vulkan_create_descriptor_set_layout(vulkan_context_t context)
+{
+    VkDescriptorSetLayoutBinding descriptor_binding = {
+        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+        .descriptorCount = 1,
+        .pImmutableSamplers = NULL,
+        .binding = 0
+    };
+
+    VkDescriptorSetLayoutCreateInfo descriptor_info = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+        .pNext = NULL,
+        .bindingCount = 1,
+        .pBindings = &descriptor_binding,
+        .flags = 0
+    };
+
+    if (vkCreateDescriptorSetLayout(context->device, &descriptor_info, NULL, &context->descriptor_set_layout) != VK_SUCCESS)
+        return false;
+    return true;
+}
+
+static bool vulkan_create_descriptor_pool(vulkan_context_t context)
+{
+    VkDescriptorPoolSize size = {
+        .descriptorCount = MAX_FRAMES_IN_FLIGHT,
+        .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
+    };
+
+    VkDescriptorPoolCreateInfo descriptor_info = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        .pNext = NULL,
+        .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+        .maxSets = MAX_FRAMES_IN_FLIGHT,
+        .poolSizeCount = 1,
+        .pPoolSizes = &size
+    };
+
+    return vkCreateDescriptorPool(context->device, &descriptor_info, NULL, &context->descriptor_pool) == VK_SUCCESS;
+}
+
+static bool vulkan_create_uniform_buffers(vulkan_context_t context)
+{
+    context->uniform_buffers = malloc(sizeof(VkBuffer) * MAX_FRAMES_IN_FLIGHT);
+    context->uniform_buffers_memory = malloc(sizeof(VkDeviceMemory) * MAX_FRAMES_IN_FLIGHT);
+    context->uniform_buffers_mapped = malloc(sizeof(void *) * MAX_FRAMES_IN_FLIGHT);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+        VkDeviceSize size = sizeof(struct uniform_buffer);
+        VkBuffer buffer;
+        VkDeviceMemory buffer_memory;
+
+        if (!vulkan_create_buffer(context, size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &(context->uniform_buffers[i]), &(context->uniform_buffers_memory[i]))
+            || vkMapMemory(context->device, context->uniform_buffers_memory[i], 0, size, 0, &(context->uniform_buffers_mapped[i])) != VK_SUCCESS)
+            return false;
+    }
+    return true;
+}
+
+static bool vulkan_create_descriptor_sets(vulkan_context_t context)
+{
+    VkDescriptorSetLayout *layouts = malloc(sizeof(VkDescriptorSetLayout) * MAX_FRAMES_IN_FLIGHT);
+    context->descriptor_sets = malloc(sizeof(VkDescriptorSet) * MAX_FRAMES_IN_FLIGHT);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+        layouts[i] = context->descriptor_set_layout;
+
+    VkDescriptorSetAllocateInfo descriptor_set_info = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+        .pNext = NULL,
+        .descriptorPool = context->descriptor_pool,
+        .descriptorSetCount = MAX_FRAMES_IN_FLIGHT,
+        .pSetLayouts = layouts
+    };
+
+    if (vkAllocateDescriptorSets(context->device, &descriptor_set_info, context->descriptor_sets) != VK_SUCCESS) {
+        free(layouts);
+        return false;
+    }
+    
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+        VkDescriptorBufferInfo buffer_info = {
+            .buffer = context->uniform_buffers[i],
+            .offset = 0,
+            .range = sizeof(struct uniform_buffer)
+        };
+
+        VkWriteDescriptorSet write_descriptor = {
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .pNext = NULL,
+            .dstSet = context->descriptor_sets[i],
+            .dstBinding = 0,
+            .dstArrayElement = 0,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            .pBufferInfo = &buffer_info
+        };
+
+        vkUpdateDescriptorSets(context->device, 1, &write_descriptor, 0, NULL);
+    }
+
+    free(layouts);
+    return true;
+}
+
 bool vulkan_init(vulkan_context_t context,
     window_t window,
     const char *engine_name,
@@ -1074,8 +1210,12 @@ bool vulkan_init(vulkan_context_t context,
         && vulkan_create_logical_device(context)
         && vulkan_create_swapchain(context, window)
         && vulkan_create_image_view(context)
+        && vulkan_create_descriptor_set_layout(context)
         && vulkan_create_graphic_pipeline(context)
         && vulkan_create_command_pool(context)
+        && vulkan_create_uniform_buffers(context)
+        && vulkan_create_descriptor_pool(context)
+        && vulkan_create_descriptor_sets(context)
         && vulkan_create_command_buffers(context)
         && vulkan_create_sync_objects(context);
 }
@@ -1085,6 +1225,24 @@ void vulkan_cleanup(vulkan_context_t context)
     if (context->device) {
         vulkan_cleanup_swapchain(context);
 
+        if (context->descriptor_pool) {
+            if (context->descriptor_sets) {
+                vkFreeDescriptorSets(context->device, context->descriptor_pool, MAX_FRAMES_IN_FLIGHT, context->descriptor_sets);
+                free(context->descriptor_sets);
+            }
+            vkDestroyDescriptorPool(context->device, context->descriptor_pool, NULL);
+        }
+        if (context->uniform_buffers_mapped)
+            free(context->uniform_buffers_mapped);
+        if (context->uniform_buffers && context->uniform_buffers_mapped) {
+            for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+                vkDestroyBuffer(context->device, context->uniform_buffers[i], NULL);
+                vkFreeMemory(context->device, context->uniform_buffers_memory[i], NULL);
+            }
+            free(context->uniform_buffers);
+            free(context->uniform_buffers_memory);
+        }
+        if (context->descriptor_set_layout) vkDestroyDescriptorSetLayout(context->device, context->descriptor_set_layout, NULL);
         if (context->present_complete_semaphores) {
             for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
                 vkDestroySemaphore(context->device, context->present_complete_semaphores[i], NULL);

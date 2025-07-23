@@ -31,7 +31,7 @@ add_executable(${MAIN_TARGET}
 )
 
 find_package(Vulkan REQUIRED)
-target_link_libraries(${MAIN_TARGET} PRIVATE Vulkan::Vulkan)
+target_link_libraries(${MAIN_TARGET} PRIVATE Vulkan::Vulkan m)
 
 if (ENABLE_WAYLAND)
     find_package(PkgConfig REQUIRED)
