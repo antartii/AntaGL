@@ -619,14 +619,20 @@ static bool vulkan_create_graphic_pipeline(vulkan_context_t context)
         .pAttachments = &color_blend_attachment
     };
 
+    VkPushConstantRange push_constant_range = {
+        .offset = 0,
+        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+        .size = sizeof(struct push_constant)
+    };
+
     VkPipelineLayoutCreateInfo pipeline_layout_info = {
         .flags = 0,
         .pNext = NULL,
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
         .setLayoutCount = 1,
         .pSetLayouts = &context->descriptor_set_layout,
-        .pushConstantRangeCount = 0,
-        .pPushConstantRanges = NULL
+        .pushConstantRangeCount = 1,
+        .pPushConstantRanges = &push_constant_range
     };
 
     if (vkCreatePipelineLayout(context->device, &pipeline_layout_info, NULL, &context->pipeline_layout) != VK_SUCCESS) {
@@ -737,7 +743,7 @@ static void transition_image_layout(
     vkCmdPipelineBarrier2(command_buffer, &dependency_info);
 }
 
-static void vulkan_record_command_buffer(vulkan_context_t context, model_t *models, uint32_t models_count)
+static void vulkan_record_command_buffer(vulkan_context_t context, object_t *objects, uint32_t objects_count)
 {
     VkCommandBufferBeginInfo begin_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -793,11 +799,12 @@ static void vulkan_record_command_buffer(vulkan_context_t context, model_t *mode
 
     vkCmdBindDescriptorSets(context->command_buffers[context->current_frame], VK_PIPELINE_BIND_POINT_GRAPHICS, context->pipeline_layout, 0, 1, &(context->descriptor_sets[context->current_frame]), 0, NULL);
 
-    for (uint32_t i = 0; i < models_count; ++i) {
+    for (uint32_t i = 0; i < objects_count; ++i) {
         VkDeviceSize offset = 0;
-        vkCmdBindVertexBuffers(context->command_buffers[context->current_frame], 0, 1, &(models[i]->vertex_buffer), &offset);
-        vkCmdBindIndexBuffer(context->command_buffers[context->current_frame], models[i]->index_buffer, offset, VK_INDEX_TYPE_UINT16);
-        vkCmdDrawIndexed(context->command_buffers[context->current_frame], models[i]->indices_count, 1, 0, 0, 0);
+        vkCmdBindVertexBuffers(context->command_buffers[context->current_frame], 0, 1, &(objects[i]->vertex_buffer), &offset);
+        vkCmdBindIndexBuffer(context->command_buffers[context->current_frame], objects[i]->index_buffer, offset, VK_INDEX_TYPE_UINT16);
+        vkCmdPushConstants(context->command_buffers[context->current_frame], context->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(struct push_constant), &objects[i]->vertex_push_constant);
+        vkCmdDrawIndexed(context->command_buffers[context->current_frame], objects[i]->indices_count, 1, 0, 0, 0);
     }
 
     vkCmdEndRendering(context->command_buffers[context->current_frame]);
@@ -879,9 +886,6 @@ static void vulkan_update_uniform_buffer(vulkan_context_t context, uint32_t curr
     glm_mat4_identity(identity);
 
     struct uniform_buffer uniform_buffer = {0};
-    glm_mat4_identity(uniform_buffer.model);
-    glm_rotate(uniform_buffer.model, time * glm_rad(90.0f), (vec3) {0.0f, 0.0f, 1.0f});
-
     glm_lookat((vec3) {2.0f, 2.0f, 2.0f}, (vec3) {0.0f, 0.0f, 0.0f}, (vec3) {0.0f, 0.0f, 1.0f}, uniform_buffer.view);
 
     glm_perspective(glm_rad(45.0f), context->swapchain_extent.width / context->swapchain_extent.height, 1.0f, 10.0f, uniform_buffer.proj);
@@ -890,7 +894,7 @@ static void vulkan_update_uniform_buffer(vulkan_context_t context, uint32_t curr
     memcpy(context->uniform_buffers_mapped[current_image], &uniform_buffer, sizeof(uniform_buffer));
 }
 
-bool vulkan_draw_frame(vulkan_context_t context, window_t window, model_t *models, uint32_t models_count)
+bool vulkan_draw_frame(vulkan_context_t context, window_t window, object_t *objects, uint32_t objects_count)
 {
     while (VK_TIMEOUT == vkWaitForFences(context->device, 1, &context->in_fligh_fences[context->current_frame], VK_TRUE, UINT64_MAX));
     VkResult result = vkAcquireNextImageKHR(context->device, context->swapchain, UINT64_MAX, context->present_complete_semaphores[context->current_frame], NULL, &context->image_index);
@@ -907,7 +911,7 @@ bool vulkan_draw_frame(vulkan_context_t context, window_t window, model_t *model
     vkResetFences(context->device, 1, &context->in_fligh_fences[context->current_frame]);
 
     vkResetCommandBuffer(context->command_buffers[context->current_frame], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
-    vulkan_record_command_buffer(context, models, models_count);
+    vulkan_record_command_buffer(context, objects, objects_count);
 
     vulkan_update_uniform_buffer(context, context->current_frame);
 
@@ -1042,7 +1046,7 @@ bool vulkan_copy_buffer(vulkan_context_t context, VkBuffer *src_buffer, VkBuffer
     vkQueueWaitIdle(context->graphic_queue);
 }
 
-bool vulkan_create_index_buffer(vulkan_context_t context, model_t model, uint16_t *indices, uint32_t indices_count)
+bool vulkan_create_index_buffer(vulkan_context_t context, object_t object, uint16_t *indices, uint32_t indices_count)
 {
     VkDeviceSize size = sizeof(uint16_t) * indices_count;
 
@@ -1056,8 +1060,8 @@ bool vulkan_create_index_buffer(vulkan_context_t context, model_t model, uint16_
     memcpy(data_staging, indices, size);
     vkUnmapMemory(context->device, staging_memory);
 
-    vulkan_create_buffer(context, size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &model->index_buffer, &model->index_memory);
-    vulkan_copy_buffer(context, &staging_buffer, &model->index_buffer, size);
+    vulkan_create_buffer(context, size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &object->index_buffer, &object->index_memory);
+    vulkan_copy_buffer(context, &staging_buffer, &object->index_buffer, size);
 
     vkDestroyBuffer(context->device, staging_buffer, NULL);
     vkFreeMemory(context->device, staging_memory, NULL);
@@ -1065,9 +1069,9 @@ bool vulkan_create_index_buffer(vulkan_context_t context, model_t model, uint16_
     return true;
 }
 
-bool vulkan_create_vertex_buffer(vulkan_context_t context, model_t model)
+bool vulkan_create_vertex_buffer(vulkan_context_t context, object_t object)
 {
-    VkDeviceSize size = sizeof(struct vertex) * model->vertices_count;
+    VkDeviceSize size = sizeof(struct vertex) * object->vertices_count;
 
     VkBuffer staging_buffer;
     VkDeviceMemory staging_memory;
@@ -1076,11 +1080,11 @@ bool vulkan_create_vertex_buffer(vulkan_context_t context, model_t model)
 
     void *data_staging;
     vkMapMemory(context->device, staging_memory, 0, size, 0, &data_staging);
-    memcpy(data_staging, model->vertices, size);
+    memcpy(data_staging, object->vertices, size);
     vkUnmapMemory(context->device, staging_memory);
 
-    vulkan_create_buffer(context, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &model->vertex_buffer, &model->vertex_memory);
-    vulkan_copy_buffer(context, &staging_buffer, &model->vertex_buffer, size);
+    vulkan_create_buffer(context, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &object->vertex_buffer, &object->vertex_memory);
+    vulkan_copy_buffer(context, &staging_buffer, &object->vertex_buffer, size);
     vkDestroyBuffer(context->device, staging_buffer, NULL);
     vkFreeMemory(context->device, staging_memory, NULL);
 

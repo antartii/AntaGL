@@ -23,16 +23,16 @@ typedef struct engine
 {
     window_t window;
 
-    model_t *models_to_draw;
-    uint32_t models_to_draw_count;
-    uint32_t max_models_to_draw;
+    object_t *objects_to_draw;
+    uint32_t objects_to_draw_count;
+    uint32_t max_objects_to_draw;
 
     struct vulkan_context vulkan_context;
 } * engine_t;
 
 void engine_cleanup(engine_t engine);
-engine_t engine_create(const char *application_name, const struct version application_version, int window_width, int window_height, uint32_t max_models_to_draw);
+engine_t engine_create(const char *application_name, const struct version application_version, int window_width, int window_height, uint32_t max_objects_to_draw);
 bool engine_display(engine_t engine);
-bool engine_draw(engine_t engine, model_t model);
+bool engine_draw(engine_t engine, object_t object);
 
 #endif

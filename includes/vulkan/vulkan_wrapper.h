@@ -22,7 +22,7 @@
 #include "utils.h"
 #include "vulkan_extension_wrapper.h"
 #include "vertex.h"
-#include "model.h"
+#include "object.h"
 
 #ifdef DEBUG
 #define ENGINE_VALIDATION_LAYERS_COUNT 1
@@ -39,12 +39,6 @@ extern const char *validation_layers[];
 struct queue_family_indices {
     uint32_t graphic;
     uint32_t present;
-};
-
-struct uniform_buffer {
-    alignas(16) mat4 model;
-    alignas(16) mat4 view;
-    alignas(16) mat4 proj;
 };
 
 typedef struct vulkan_context {
@@ -86,7 +80,7 @@ typedef struct vulkan_context {
     struct vulkan_extensions_functions vulkan_extensions_functions;
 } * vulkan_context_t;
 
-bool vulkan_draw_frame(vulkan_context_t vulkan_context, window_t window, model_t *models, uint32_t models_count);
+bool vulkan_draw_frame(vulkan_context_t vulkan_context, window_t window, object_t *objects, uint32_t objects_count);
 
 bool vulkan_init(vulkan_context_t vulkan_context,
     window_t window,
@@ -96,7 +90,7 @@ bool vulkan_init(vulkan_context_t vulkan_context,
     uint32_t application_version);
 
 void vulkan_cleanup(vulkan_context_t vulkan_context);
-bool vulkan_create_vertex_buffer(vulkan_context_t context, model_t model);
-bool vulkan_create_index_buffer(vulkan_context_t context, model_t model, uint16_t *indices, uint32_t indices_count);
+bool vulkan_create_vertex_buffer(vulkan_context_t context, object_t object);
+bool vulkan_create_index_buffer(vulkan_context_t context, object_t object, uint16_t *indices, uint32_t indices_count);
 
 #endif
