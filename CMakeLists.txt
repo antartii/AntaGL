@@ -25,6 +25,7 @@ add_executable(${MAIN_TARGET}
     src/engine.c
     src/vertex.c
     src/object.c
+    src/camera.c
     src/vulkan/vulkan_wrapper.c
     src/vulkan/vulkan_extension_wrapper.c
     $<$<BOOL:${ENABLE_WAYLAND}>:${CMAKE_SOURCE_DIR}/src/wayland/wayland.c>

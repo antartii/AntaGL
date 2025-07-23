@@ -10,6 +10,7 @@
 #include "window.h"
 #include "vulkan_wrapper.h"
 #include "utils.h"
+#include "camera.h"
 
 #ifdef WAYLAND_SURFACE
 #include "wayland.h"
@@ -22,6 +23,7 @@
 typedef struct engine
 {
     window_t window;
+    struct camera camera;
 
     object_t *objects_to_draw;
     uint32_t objects_to_draw_count;

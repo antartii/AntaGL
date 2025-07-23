@@ -1,7 +1,7 @@
 struct VertexInput {
     float2 inPosition;
     float3 inColor;
-}
+};
 
 struct VertexOutput {
     float3 color;

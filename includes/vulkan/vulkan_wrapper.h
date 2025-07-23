@@ -23,6 +23,7 @@
 #include "vulkan_extension_wrapper.h"
 #include "vertex.h"
 #include "object.h"
+#include "camera.h"
 
 #ifdef DEBUG
 #define ENGINE_VALIDATION_LAYERS_COUNT 1
@@ -92,5 +93,8 @@ bool vulkan_init(vulkan_context_t vulkan_context,
 void vulkan_cleanup(vulkan_context_t vulkan_context);
 bool vulkan_create_vertex_buffer(vulkan_context_t context, object_t object);
 bool vulkan_create_index_buffer(vulkan_context_t context, object_t object, uint16_t *indices, uint32_t indices_count);
+
+void vulkan_update_proj(vulkan_context_t context, camera_t camera);
+void vulkan_update_view(vulkan_context_t context, camera_t camera);
 
 #endif

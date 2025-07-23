@@ -869,29 +869,24 @@ void vulkan_recreate_swapchain(vulkan_context_t context, window_t window)
     context->current_frame = 0;
 }
 
-static void vulkan_update_uniform_buffer(vulkan_context_t context, uint32_t current_image)
+void vulkan_update_view(vulkan_context_t context, camera_t camera)
 {
-    static struct timespec start_time = {0};
+    mat4 view;
+    glm_lookat(camera->pos, camera->target, camera->up, view);
 
-    struct timespec current_time;
-    clock_gettime(CLOCK_MONOTONIC, &current_time);
+    for (size_t i = 0; i <  MAX_FRAMES_IN_FLIGHT; ++i)
+        memcpy(context->uniform_buffers_mapped[i], &view, sizeof(mat4));
+}
 
-    if (start_time.tv_sec == 0 && start_time.tv_nsec == 0)
-        start_time = current_time;
+void vulkan_update_proj(vulkan_context_t context, camera_t camera)
+{
+    mat4 proj;
 
-    double elapsed_sec = (current_time.tv_sec - start_time.tv_sec) + (current_time.tv_nsec - start_time.tv_nsec) / 1e9;
-    float time = (float) elapsed_sec;
+    glm_perspective(glm_rad(45.0f), context->swapchain_extent.width / context->swapchain_extent.height, 1.0f, 10.0f, proj);
+    proj[1][1] *= -1;
 
-    mat4 identity;
-    glm_mat4_identity(identity);
-
-    struct uniform_buffer uniform_buffer = {0};
-    glm_lookat((vec3) {2.0f, 2.0f, 2.0f}, (vec3) {0.0f, 0.0f, 0.0f}, (vec3) {0.0f, 0.0f, 1.0f}, uniform_buffer.view);
-
-    glm_perspective(glm_rad(45.0f), context->swapchain_extent.width / context->swapchain_extent.height, 1.0f, 10.0f, uniform_buffer.proj);
-    uniform_buffer.proj[1][1] *= -1;
-
-    memcpy(context->uniform_buffers_mapped[current_image], &uniform_buffer, sizeof(uniform_buffer));
+    for (size_t i = 0; i <  MAX_FRAMES_IN_FLIGHT; ++i)
+        memcpy(context->uniform_buffers_mapped[i] + sizeof(mat4), &proj, sizeof(mat4));
 }
 
 bool vulkan_draw_frame(vulkan_context_t context, window_t window, object_t *objects, uint32_t objects_count)
@@ -912,8 +907,6 @@ bool vulkan_draw_frame(vulkan_context_t context, window_t window, object_t *obje
 
     vkResetCommandBuffer(context->command_buffers[context->current_frame], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
     vulkan_record_command_buffer(context, objects, objects_count);
-
-    vulkan_update_uniform_buffer(context, context->current_frame);
 
     VkPipelineStageFlags wait_destination_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     const VkSubmitInfo submit_info = {

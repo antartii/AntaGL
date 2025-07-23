@@ -69,6 +69,12 @@ bool engine_display(engine_t engine)
     return result;
 }
 
+void engine_update_camera(engine_t engine)
+{
+    vulkan_update_proj(&engine->vulkan_context, &engine->camera);
+    vulkan_update_view(&engine->vulkan_context, &engine->camera);
+}
+
 engine_t engine_create(const char *application_name, const struct version application_version, int window_width, int window_height, uint32_t max_objects_to_draw)
 {
     engine_t engine = calloc(1, sizeof(struct engine));
@@ -79,6 +85,8 @@ engine_t engine_create(const char *application_name, const struct version applic
     if (!engine)
         engine_error(engine, "engine_create: engine_t engine is NULL\n", true);
     engine_init(engine, application_name, VK_MAKE_VERSION(application_version.major, application_version.minor, application_version.patch), window_width, window_height);
+    camera_init(&engine->camera);
+    engine_update_camera(engine);
 
     return engine;
 }
