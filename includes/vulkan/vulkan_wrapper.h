@@ -2,7 +2,7 @@
     #define _VULKAN_WRAPPER_H
 
     #ifdef WAYLAND_SURFACE
-    #include "wayland.h"
+    #include "wayland/wayland.h"
     #define VK_USE_PLATFORM_WAYLAND_KHR
     #include <wayland-client.h>
     #endif
@@ -32,7 +32,6 @@ extern const char *validation_layers[];
 #endif
 
 #define QUEUE_FAMILY_INDICE_DEFAULT 0
-#define SHADERS_FILE_PATH "shaders/slang.spv"
 #define SHADER_VERTEX_ENTRY_POINT "vertMain"
 #define SHADER_FRAGMENT_ENTRY_POINT "fragMain"
 #define MAX_FRAMES_IN_FLIGHT 2

@@ -2,7 +2,7 @@
     #define _OBJECT_H
 
     #include "vertex.h"
-    #include "shaders.h"
+    #include "vulkan/shaders.h"
 
 /**
  * @brief typedef to the engine structure needed by some objects functions from "engine.h"

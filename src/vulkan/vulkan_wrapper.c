@@ -502,7 +502,10 @@ static VkShaderModule vulkan_create_shader_module(VkDevice device, const char *c
 static bool vulkan_create_graphic_pipeline(vulkan_context_t context)
 {
     uint32_t code_size;
-    char *shader_code = read_file(SHADERS_FILE_PATH, &code_size);
+    const char *shader_file = getenv("ANTAGL_SHADER_PATH");
+    if (!shader_file)
+        shader_file = "/usr/local/share/AntaGL/shaders/slang.spv";
+    char *shader_code = read_file(shader_file, &code_size);
 
     VkShaderModule shader_module = vulkan_create_shader_module(context->device, shader_code, code_size);
     

@@ -1,4 +1,4 @@
-#include "wayland.h"
+#include "wayland/wayland.h"
 
 /*
     ----- INFO -----

@@ -6,6 +6,7 @@
 - [ ] think of how to benchmark to test, or fps monitoring idk
 - [ ] Create a library 1.0.0 and add documentation + example
 - [ ] Convert the typedef from the direct definition to define struct => typedef ptr.
+- [ ] Install shaders locally for users, maybe do a #define for defined by cmake of users ? idk
 
 ## Window api's
 - [ ] Update Wayland functions using documentation and without the tutorial

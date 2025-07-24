@@ -1,8 +1,4 @@
-#include <vulkan/vulkan.h>
-
-#include "utils.h"
-#include "engine.h"
-#include "object.h"
+#include <AntaGL/AntaGL.h>
 
 void run(engine_t engine)
 {

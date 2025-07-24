@@ -8,12 +8,12 @@
     #include <stdbool.h>
 
     #include "window.h"
-    #include "vulkan_wrapper.h"
+    #include "vulkan/vulkan_wrapper.h"
     #include "utils.h"
     #include "camera.h"
 
     #ifdef WAYLAND_SURFACE
-    #include "wayland.h"
+    #include "wayland/wayland.h"
     #endif
 
     /**
@@ -121,5 +121,12 @@ bool engine_should_close(engine_t engine);
  * @param engine Pointer to the engine that will wait to be idle
  */
 void engine_wait_idle(engine_t engine);
+/**
+ * @brief Update the view and projection of the scene using the main camera of the engine
+ * The camera's informations won't be updated in the scene until this function is called
+ * 
+ * @param engine Pointer to the engine where the camera view and projection will be updated
+ */
+void engine_update_camera(engine_t engine);
 
 #endif
