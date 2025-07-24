@@ -882,7 +882,7 @@ void vulkan_update_proj(vulkan_context_t context, camera_t camera)
 {
     mat4 proj;
 
-    glm_perspective(camera->fov, context->swapchain_extent.width / context->swapchain_extent.height, camera->render_depth_range[0], camera->render_depth_range[1], proj);
+    glm_perspective(camera->fov_in_radians, context->swapchain_extent.width / context->swapchain_extent.height, camera->render_depth_range[0], camera->render_depth_range[1], proj);
     proj[1][1] *= -1;
 
     for (size_t i = 0; i <  MAX_FRAMES_IN_FLIGHT; ++i)
@@ -1069,9 +1069,9 @@ bool vulkan_create_index_buffer(vulkan_context_t context, object_t object, uint1
     return true;
 }
 
-bool vulkan_create_vertex_buffer(vulkan_context_t context, object_t object)
+bool vulkan_create_vertex_buffer(vulkan_context_t context, object_t object, struct vertex *vertices, uint32_t vertices_count)
 {
-    VkDeviceSize size = sizeof(struct vertex) * object->vertices_count;
+    VkDeviceSize size = sizeof(struct vertex) * vertices_count;
 
     VkBuffer staging_buffer;
     VkDeviceMemory staging_memory;
@@ -1080,7 +1080,7 @@ bool vulkan_create_vertex_buffer(vulkan_context_t context, object_t object)
 
     void *data_staging;
     vkMapMemory(context->device, staging_memory, 0, size, 0, &data_staging);
-    memcpy(data_staging, object->vertices, size);
+    memcpy(data_staging, vertices, size);
     vkUnmapMemory(context->device, staging_memory);
 
     vulkan_create_buffer(context, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &object->vertex_buffer, &object->vertex_memory);

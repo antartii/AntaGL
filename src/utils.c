@@ -39,24 +39,19 @@ int max_int(int val, int max)
     return val > max ? val : max;
 }
 
-uint32_t get_file_size(const char *file_name)
-{
-    
-}
-
-char *read_file(const char *file_name, uint32_t *code_size)
+char *read_file(const char *file_name, uint32_t *buffer_size)
 {
     FILE *file = fopen(file_name, "rb");
-    *code_size = 0;
+    *buffer_size = 0;
     char *buffer = NULL;
 
     if (file) {
         fseek(file, 0, SEEK_END);
-        *code_size = ftell(file);
+        *buffer_size = ftell(file);
         fseek(file, 0, SEEK_SET);
-        buffer = malloc(sizeof(char) * (*code_size));
+        buffer = malloc(sizeof(char) * (*buffer_size));
         if (buffer)
-            fread(buffer, 1, *code_size, file);
+            fread(buffer, 1, *buffer_size, file);
         fclose(file);
     }
     #ifdef DEBUG 

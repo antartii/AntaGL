@@ -1,5 +1,10 @@
 #include "wayland.h"
 
+/*
+    ----- INFO -----
+    - x and y coordinates are from top left to bottom right make sure to update code that use coordinate accordingly
+*/
+
 const char *wayland_instance_extensions[] = {
     "VK_KHR_surface",
     "VK_KHR_wayland_surface"
@@ -57,14 +62,14 @@ static void wl_pointer_enter(void *data, struct wl_pointer *wl_pointer, uint32_t
 {
     window_t window = data;
 
-    window->state_bitmask |= MOUSE_STATE_HOVERING;
+    window->mouse.mouse_state_bitmask |= MOUSE_STATE_HOVERING;
 }
 
 static void wl_pointer_leave(void *data, struct wl_pointer *wl_pointer, uint32_t serial, struct wl_surface *surface)
 {
     window_t window = data;
 
-    window->state_bitmask &= MOUSE_STATE_HOVERING;
+    window->mouse.mouse_state_bitmask &= MOUSE_STATE_HOVERING;
 }
 
 static enum window_edge_bitmask mouse_get_edge(int x, int y, int width, int height)
@@ -106,10 +111,10 @@ static void wl_pointer_button(void *data, struct wl_pointer *wl_pointer, uint32_
     uint32_t button_bitmask = mouse_button_code_to_bitmask_value(button);
 
     if (state == WL_POINTER_BUTTON_STATE_RELEASED) {
-        window->state_bitmask &= MOUSE_STATE_CLICK;
+        window->mouse.mouse_state_bitmask &= MOUSE_STATE_CLICK;
         window->mouse.btn_clicked_bitmask &= button_bitmask;
     } else {
-        window->state_bitmask |= MOUSE_STATE_CLICK;
+        window->mouse.mouse_state_bitmask |= MOUSE_STATE_CLICK;
         window->mouse.btn_clicked_bitmask |= button_bitmask;
         if (window->mouse.edge_bitmask != NONE)
             xdg_toplevel_resize(window->xdg_toplevel, window->seat, serial, window->mouse.edge_bitmask);

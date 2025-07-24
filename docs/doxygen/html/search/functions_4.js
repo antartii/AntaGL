@@ -1,0 +1,7 @@
+var searchData=
+[
+  ['object_5fcreate_0',['object_create',['../object_8c.html#a05f4f43c0d25f7d4bcd02ffd76ff78c4',1,'object_create(engine_t engine, vec2 *vertices_pos, vec3 color, uint16_t *indices, uint32_t vertices_count):&#160;object.c'],['../object_8h.html#a05f4f43c0d25f7d4bcd02ffd76ff78c4',1,'object_create(engine_t engine, vec2 *vertices_pos, vec3 color, uint16_t *indices, uint32_t vertices_count):&#160;object.c']]],
+  ['object_5fcreate_5frectangle_1',['object_create_rectangle',['../object_8c.html#a5877d59abe48982f29763453f70d326e',1,'object_create_rectangle(engine_t engine, vec2 pos, vec2 size, vec3 color):&#160;object.c'],['../object_8h.html#a5877d59abe48982f29763453f70d326e',1,'object_create_rectangle(engine_t engine, vec2 pos, vec2 size, vec3 color):&#160;object.c']]],
+  ['object_5fcreate_5ftriangle_2',['object_create_triangle',['../object_8c.html#aaa483cd943810f708ad4b8dda64af3c3',1,'object_create_triangle(engine_t engine, mat3x2 vertices_pos, vec3 color):&#160;object.c'],['../object_8h.html#aaa483cd943810f708ad4b8dda64af3c3',1,'object_create_triangle(engine_t engine, mat3x2 vertices_pos, vec3 color):&#160;object.c']]],
+  ['object_5fdestroy_3',['object_destroy',['../object_8c.html#af15fa2bbbe3da499594ba2fab0add84f',1,'object_destroy(engine_t engine, object_t object):&#160;object.c'],['../object_8h.html#af15fa2bbbe3da499594ba2fab0add84f',1,'object_destroy(engine_t engine, object_t object):&#160;object.c']]]
+];

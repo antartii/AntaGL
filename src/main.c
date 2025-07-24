@@ -10,14 +10,14 @@ void run(engine_t engine)
     vec2 size = {1.0f, 1.0f};
     vec3 color = {1.0f, 1.0f, 1.0f};
 
-    object_t rectangle = object_create_rectangle(&engine->vulkan_context, pos, size, color);
+    object_t rectangle = object_create_rectangle(engine, pos, size, color);
     
     mat3x2 tri_pos = {
         {0.0f, -0.5f},
         {0.5f, 0.5f},
         {-0.5f, 0.5f}
     };
-    object_t triangle = object_create_triangle(&engine->vulkan_context, tri_pos, color);
+    object_t triangle = object_create_triangle(engine, tri_pos, color);
 
     while (!engine_should_close(engine)) {
         engine_poll_events(engine);
@@ -27,10 +27,10 @@ void run(engine_t engine)
         if (!engine_display(engine))
             break;
     }
-    engine_end(engine);
+    engine_wait_idle(engine);
 
-    object_destroy(&engine->vulkan_context, rectangle);
-    object_destroy(&engine->vulkan_context, triangle);
+    object_destroy(engine, rectangle);
+    object_destroy(engine, triangle);
 }
 
 int main(const int argc, const char **argv, const char **env)

@@ -1,0 +1,12 @@
+var searchData=
+[
+  ['end_5fwayland_0',['end_wayland',['../wayland_8c.html#a621d2ec10af47244f218b502afc5b992',1,'end_wayland(window_t window):&#160;wayland.c'],['../wayland_8h.html#a621d2ec10af47244f218b502afc5b992',1,'end_wayland(window_t window):&#160;wayland.c']]],
+  ['engine_5fcleanup_1',['engine_cleanup',['../engine_8c.html#a6851501e8b95d5e043f459c43c258cfd',1,'engine_cleanup(engine_t engine):&#160;engine.c'],['../engine_8h.html#a6851501e8b95d5e043f459c43c258cfd',1,'engine_cleanup(engine_t engine):&#160;engine.c']]],
+  ['engine_5fcreate_2',['engine_create',['../engine_8c.html#a93a2f3e2a35e88b94651edd28dee8f96',1,'engine_create(const char *application_name, const struct version application_version, int window_width, int window_height, uint32_t max_objects_to_draw):&#160;engine.c'],['../engine_8h.html#a93a2f3e2a35e88b94651edd28dee8f96',1,'engine_create(const char *application_name, const struct version application_version, int window_width, int window_height, uint32_t max_objects_to_draw):&#160;engine.c']]],
+  ['engine_5fdisplay_3',['engine_display',['../engine_8c.html#a27b05c6f180fe46b60ee7d65364b334f',1,'engine_display(engine_t engine):&#160;engine.c'],['../engine_8h.html#a27b05c6f180fe46b60ee7d65364b334f',1,'engine_display(engine_t engine):&#160;engine.c']]],
+  ['engine_5fdraw_4',['engine_draw',['../engine_8c.html#a4a1b84961199c86bed6c6905b53a06b4',1,'engine_draw(engine_t engine, object_t object):&#160;engine.c'],['../engine_8h.html#a4a1b84961199c86bed6c6905b53a06b4',1,'engine_draw(engine_t engine, object_t object):&#160;engine.c']]],
+  ['engine_5fpoll_5fevents_5',['engine_poll_events',['../engine_8c.html#a6f646acdfd3b759ac771cf9d51d7e07e',1,'engine_poll_events(engine_t engine):&#160;engine.c'],['../engine_8h.html#a6f646acdfd3b759ac771cf9d51d7e07e',1,'engine_poll_events(engine_t engine):&#160;engine.c']]],
+  ['engine_5fshould_5fclose_6',['engine_should_close',['../engine_8c.html#a901ceafbca4c37110715df0b6e0b0add',1,'engine_should_close(engine_t engine):&#160;engine.c'],['../engine_8h.html#a901ceafbca4c37110715df0b6e0b0add',1,'engine_should_close(engine_t engine):&#160;engine.c']]],
+  ['engine_5fupdate_5fcamera_7',['engine_update_camera',['../engine_8c.html#aa8005ee8204080067ab062b4f1c27906',1,'engine.c']]],
+  ['engine_5fwait_5fidle_8',['engine_wait_idle',['../engine_8c.html#a64643c1103fc1334edf898e21eb7d77e',1,'engine_wait_idle(engine_t engine):&#160;engine.c'],['../engine_8h.html#a64643c1103fc1334edf898e21eb7d77e',1,'engine_wait_idle(engine_t engine):&#160;engine.c']]]
+];

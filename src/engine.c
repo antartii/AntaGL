@@ -67,7 +67,7 @@ bool engine_draw(engine_t engine, object_t object)
     return true;
 }
 
-void engine_end(engine_t engine)
+void engine_wait_idle(engine_t engine)
 {
     vkDeviceWaitIdle(engine->vulkan_context.device);
 }

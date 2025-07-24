@@ -1,29 +1,29 @@
 #ifndef _VULKAN_WRAPPER_H
-#define _VULKAN_WRAPPER_H
+    #define _VULKAN_WRAPPER_H
 
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <inttypes.h>
-#include <string.h>
+    #ifdef WAYLAND_SURFACE
+    #include "wayland.h"
+    #define VK_USE_PLATFORM_WAYLAND_KHR
+    #include <wayland-client.h>
+    #endif
 
-#ifdef WAYLAND_SURFACE
-#include "wayland.h"
-#define VK_USE_PLATFORM_WAYLAND_KHR
-#include <wayland-client.h>
-#endif
+    #include <unistd.h>
+    #include <stdlib.h>
+    #include <stdint.h>
+    #include <inttypes.h>
+    #include <string.h>
+    #include <vulkan/vulkan.h>
+    #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
+    #include <cglm/cglm.h>
+    #include <stdalign.h>
+    #include <time.h>
 
-#include <vulkan/vulkan.h>
-#define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
-#include <cglm/cglm.h>
-#include <stdalign.h>
-#include <time.h>
-#include "window.h"
-#include "utils.h"
-#include "vulkan_extension_wrapper.h"
-#include "vertex.h"
-#include "object.h"
-#include "camera.h"
+    #include "window.h"
+    #include "utils.h"
+    #include "vulkan_extension_wrapper.h"
+    #include "vertex.h"
+    #include "object.h"
+    #include "camera.h"
 
 #ifdef DEBUG
 #define ENGINE_VALIDATION_LAYERS_COUNT 1
@@ -91,7 +91,7 @@ bool vulkan_init(vulkan_context_t vulkan_context,
     uint32_t application_version);
 
 void vulkan_cleanup(vulkan_context_t vulkan_context);
-bool vulkan_create_vertex_buffer(vulkan_context_t context, object_t object);
+bool vulkan_create_vertex_buffer(vulkan_context_t context, object_t object, struct vertex *vertices, uint32_t vertices_count);
 bool vulkan_create_index_buffer(vulkan_context_t context, object_t object, uint16_t *indices, uint32_t indices_count);
 
 void vulkan_update_proj(vulkan_context_t context, camera_t camera);
