@@ -29,7 +29,7 @@ enum mouse_state_bitmask {
  * @def WINDOW_EDGE_MARGIN
  * @brief Define the margin of error for the detection of the window edge 
  */
-#define WINDOW_EDGE_MARGIN 5
+#define WINDOW_EDGE_MARGIN 10.f
 
 enum window_edge_bitmask {
     #ifdef WAYLAND_SURFACE
@@ -60,8 +60,8 @@ enum window_edge_bitmask {
  * Bitmask representing the state of the mouse, using the `enum mouse_state_bitmask`
  */
 typedef struct mouse {
-    int pos_x;
-    int pos_y;
+    double pos_x;
+    double pos_y;
     enum mouse_buttons btn_clicked_bitmask;
     enum window_edge_bitmask edge_bitmask;
     enum mouse_state_bitmask mouse_state_bitmask;

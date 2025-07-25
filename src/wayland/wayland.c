@@ -72,7 +72,7 @@ static void wl_pointer_leave(void *data, struct wl_pointer *wl_pointer, uint32_t
     window->mouse.mouse_state_bitmask &= MOUSE_STATE_HOVERING;
 }
 
-static enum window_edge_bitmask mouse_get_edge(int x, int y, int width, int height)
+static enum window_edge_bitmask mouse_get_edge(double x, double y, int width, int height)
 {
     enum window_edge_bitmask window_edge_bitmask = NONE;
 
@@ -90,9 +90,12 @@ static void wl_pointer_motion(void *data, struct wl_pointer *wl_pointer, uint32_
     window_t window = data;
 
     //window->state_bitmask |= MOUSE_STATE_MOVING;
-    window->mouse.pos_x = surface_x;
-    window->mouse.pos_y = window->width - surface_y;
-    window->mouse.edge_bitmask = mouse_get_edge(surface_x, surface_y, window->width, window->height);
+    double y = wl_fixed_to_double(surface_y);
+    double x = wl_fixed_to_double(surface_x);
+
+    window->mouse.pos_x = x;
+    window->mouse.pos_y = window->width - y;
+    window->mouse.edge_bitmask = mouse_get_edge(x, y, window->width, window->height);
 }
 
 static int mouse_button_code_to_bitmask_value(uint32_t button)
@@ -246,6 +249,7 @@ bool init_wayland(window_t window)
     wl_display_roundtrip(window->display);
 
     window->surface = wl_compositor_create_surface(window->compositor);
+    wl_surface_set_input_region(window->surface, NULL);
     window->xdg_surface = xdg_wm_base_get_xdg_surface(window->xdg_wm_base, window->surface);
     xdg_surface_add_listener(window->xdg_surface, &xdg_surface_listener, window);
     window->xdg_toplevel = xdg_surface_get_toplevel(window->xdg_surface);
