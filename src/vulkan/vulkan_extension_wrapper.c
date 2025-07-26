@@ -5,8 +5,10 @@ bool vulkan_init_extensions_functions(VkInstance instance, vulkan_extensions_fun
     vulkan_extensions_functions->vkCreateDebugUtilsMessengerEXT = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
     vulkan_extensions_functions->vkDestroyDebugUtilsMessengerEXT = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
 
+    #ifdef DEBUG
     if (!vulkan_extensions_functions->vkCreateDebugUtilsMessengerEXT
         || !vulkan_extensions_functions->vkDestroyDebugUtilsMessengerEXT)
         return false;
+    #endif
     return true;
 }
