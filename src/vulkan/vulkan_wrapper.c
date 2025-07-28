@@ -439,7 +439,7 @@ static bool vulkan_create_swapchain(vulkan_context_t context, window_t window)
     }
 
     VkResult result = vkCreateSwapchainKHR(context->device, &swapchain_info, NULL, &context->swapchain);
-
+    
     vkGetSwapchainImagesKHR(context->device, context->swapchain, &context->swapchain_images_count, NULL);
     context->swapchain_images = malloc(sizeof(VkImage) * context->swapchain_images_count);
     vkGetSwapchainImagesKHR(context->device, context->swapchain, &context->swapchain_images_count, context->swapchain_images);
@@ -860,16 +860,8 @@ void vulkan_recreate_swapchain(vulkan_context_t context, window_t window)
     vkDeviceWaitIdle(context->device);
     vulkan_cleanup_swapchain(context);
 
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-        vkDestroySemaphore(context->device, context->present_complete_semaphores[i], NULL);
-        vkDestroySemaphore(context->device, context->render_finished_semaphores[i], NULL);
-        vkDestroyFence(context->device, context->in_fligh_fences[i], NULL);
-    }
-    vulkan_create_sync_objects(context);
-
     vulkan_create_swapchain(context, window);
     vulkan_create_image_view(context);
-    context->current_frame = 0;
 }
 
 void vulkan_update_view(vulkan_context_t context, camera_t camera)
@@ -894,15 +886,35 @@ void vulkan_update_proj(vulkan_context_t context, camera_t camera)
 
 bool vulkan_draw_frame(vulkan_context_t context, window_t window, object_t *objects, uint32_t objects_count)
 {
-    while (VK_TIMEOUT == vkWaitForFences(context->device, 1, &context->in_fligh_fences[context->current_frame], VK_TRUE, UINT64_MAX));
-    VkResult result = vkAcquireNextImageKHR(context->device, context->swapchain, UINT64_MAX, context->present_complete_semaphores[context->current_frame], NULL, &context->image_index);
+    vkWaitForFences(context->device, 1, &context->in_fligh_fences[context->current_frame], VK_TRUE, UINT64_MAX);
 
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || window->framebuffer_resized) {
+    VkResult result = vkAcquireNextImageKHR(context->device, context->swapchain, UINT64_MAX, context->present_complete_semaphores[context->current_frame], NULL, &context->image_index);
+    VkPipelineStageFlags wait_destination_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR
+        #ifdef WAYLAND_SURFACE
+        || window->framebuffer_resized
+        #endif
+    ) {
+        vkResetFences(context->device, 1, &context->in_fligh_fences[context->current_frame]);
+
+        VkSubmitInfo dummy_submit = {
+            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .waitSemaphoreCount = 1,
+            .pWaitSemaphores = &context->present_complete_semaphores[context->current_frame],
+            .pWaitDstStageMask = &wait_destination_stage_mask,
+            .commandBufferCount = 0,
+            .signalSemaphoreCount = 0,
+            .pCommandBuffers = NULL,
+            .pSignalSemaphores = NULL,
+        };
+        vkQueueSubmit(context->graphic_queue, 1, &dummy_submit, context->in_fligh_fences[context->current_frame]);
         vulkan_recreate_swapchain(context, window);
+        #ifdef WAYLAND_SURFACE
         window->framebuffer_resized = false;
+        #endif
         return true;
-    }
-    if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+    } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
         #ifdef DEBUG
         write(STDERR_FILENO, "Failed to acquire swapchain image\n", 35);
         #endif
@@ -913,7 +925,6 @@ bool vulkan_draw_frame(vulkan_context_t context, window_t window, object_t *obje
     vkResetCommandBuffer(context->command_buffers[context->current_frame], VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
     vulkan_record_command_buffer(context, objects, objects_count);
 
-    VkPipelineStageFlags wait_destination_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     const VkSubmitInfo submit_info = {
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
         .pNext = NULL,
@@ -941,9 +952,8 @@ bool vulkan_draw_frame(vulkan_context_t context, window_t window, object_t *obje
 
     result = vkQueuePresentKHR(context->present_queue, &present_info);
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-        printf("here\n");
-        window->framebuffer_resized = false;
         vulkan_recreate_swapchain(context, window);
+        window->framebuffer_resized = false;
     }
     #ifdef DEBUG 
     else if (result != VK_SUCCESS) {

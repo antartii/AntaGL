@@ -56,7 +56,6 @@ target_compile_options(${MAIN_TARGET} PUBLIC ${SURFACE_CFLAGS})
 target_compile_definitions(${MAIN_TARGET} PUBLIC ${SURFACE_CDEF})
 find_package(Vulkan REQUIRED)
 target_link_libraries(${MAIN_TARGET} PUBLIC Vulkan::Vulkan m)
-
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_compile_definitions(${MAIN_TARGET} PUBLIC DEBUG)
 endif()

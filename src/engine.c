@@ -51,7 +51,7 @@ static void engine_init(engine_t engine, const char *application_name, uint32_t 
         engine_error(engine, "engine_init: window couldn't be inited\n", true);
 
     if (!vulkan_init(&engine->vulkan_context, engine->window, ENGINE_NAME, ENGINE_VERSION, application_name, application_version))
-        engine_error(engine, "engine_init: failed to init the engine\n", true);
+        engine_error(engine, "engine_init: failed to init vulkan\n", true);
 }
 
 bool engine_draw(engine_t engine, object_t object)
