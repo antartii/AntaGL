@@ -3,7 +3,7 @@
 static int engine_error(engine_t engine, const char *msg, const bool is_critical)
 {
     #ifdef DEBUG
-    write(STDERR_FILENO, msg, strlen(msg));
+    write(STDERR_FILENO, msg, (unsigned int) strlen(msg));
     #endif
 
     if (is_critical) {

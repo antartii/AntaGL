@@ -1,4 +1,4 @@
-#include <AntaGL/AntaGL.h>
+#include <AntaGL.h>
 
 void run(engine_t engine)
 {

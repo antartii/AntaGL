@@ -7,7 +7,11 @@
     #include <wayland-client.h>
     #endif
 
-    #include <unistd.h>
+    #ifdef _WIN32
+        #include <Windows.h>
+    #else
+        #include <unistd.h>
+    #endif
     #include <stdlib.h>
     #include <stdint.h>
     #include <inttypes.h>

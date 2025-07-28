@@ -4,7 +4,15 @@
     #include <stdio.h>
     #include <stdlib.h>
     #include <stdint.h>
-    #include <unistd.h>
+    #ifdef _WIN32
+        #include <Windows.h>
+        #include <io.h>
+        #include <fcntl.h>
+        #define write _write
+        #define STDERR_FILENO _fileno(stderr)
+    #else
+        #include <unistd.h>
+    #endif
 
     /** 
      * @def UNDEFINED
@@ -16,6 +24,7 @@
      * @brief None state when dealing with multiple choices
      */
     #define NONE 0
+    #define PTR_OFFSET(ptr, offset) ((void *)(((char *)(ptr)) + (offset)))
 
 /**
  * @brief Convert an integer to a string

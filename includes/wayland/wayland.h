@@ -4,7 +4,11 @@
     #include <stdio.h>
     #include <wayland-client.h>
     #include <stdbool.h>
-    #include <unistd.h>
+    #ifdef _WIN32
+        #include <Windows.h>
+    #else
+        #include <unistd.h>
+    #endif
     #include <stdint.h>
     #include <string.h>
     #include <time.h>

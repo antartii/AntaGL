@@ -1,7 +1,11 @@
 #ifndef _ENGINE_H
     #define _ENGINE_H
 
-    #include <unistd.h>
+    #ifdef _WIN32
+        #include <Windows.h>
+    #else
+        #include <unistd.h>
+    #endif
     #include <errno.h>
     #include <string.h>
     #include <stdlib.h>

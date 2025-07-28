@@ -1,8 +1,6 @@
 #include "object.h"
 #include "engine.h"
 
-#include <unistd.h>
-
 object_t object_create(engine_t engine, vec2 *vertices_pos, vec3 color, uint16_t *indices, uint32_t vertices_count)
 {
     object_t object = calloc(1, sizeof(struct object));

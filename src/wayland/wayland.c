@@ -183,7 +183,7 @@ static void wl_seat_capabilities(void *data, struct wl_seat *wl_seat, uint32_t c
 
 static void wl_seat_name(void *data, struct wl_seat *wl_seat, const char *name)
 {
-    // fprintf(stderr, "seat name: %s\n", name);
+    // fprintf(STDERR_FILENO, "seat name: %s\n", name);
 }
 
 static const struct wl_seat_listener wl_seat_listener = {
