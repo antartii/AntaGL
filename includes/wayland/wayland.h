@@ -17,7 +17,7 @@
     #include <errno.h>
 
     #include "window.h"
-    #include "xdg-shell-client-protocol.h"
+    #include <xdg/xdg-shell-client-protocol.h>
 
 /**
  * @brief Array of the names for the extensions needed by the instance to use wayland

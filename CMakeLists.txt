@@ -11,10 +11,10 @@ set(SURFACE "wayland" CACHE STRING "Select your surface")
 
 # === SURFACE SELECTION ===
 if (SURFACE STREQUAL "wayland")
-    file(GLOB_RECURSE LIB_SOURCES ${PROJECT_SOURCE_DIR}/lib/xdg_shell_protocol/*.c)
+    file(GLOB_RECURSE LIB_SOURCES ${PROJECT_SOURCE_DIR}/lib/xdg/*.c)
     set(SURFACE_SOURCES ${PROJECT_SOURCE_DIR}/src/wayland/wayland.c)
     set(SURFACE_INCLUDES_DIR ${PROJECT_SOURCE_DIR}/includes/wayland
-        ${PROJECT_SOURCE_DIR}/lib/xdg_shell_protocol
+        ${PROJECT_SOURCE_DIR}/lib/xdg
     )
 
     find_package(PkgConfig REQUIRED)
@@ -71,7 +71,7 @@ install(TARGETS ${MAIN_TARGET}
     RUNTIME DESTINATION bin
 )
 install(DIRECTORY includes/ DESTINATION include FILES_MATCHING PATTERN "*.h")
-install(DIRECTORY lib/xdg_shell_protocol/ DESTINATION include/xdg FILES_MATCHING PATTERN *.h)
+install(DIRECTORY lib/xdg/ DESTINATION include/xdg FILES_MATCHING PATTERN *.h)
 install(DIRECTORY lib/cglm/ DESTINATION include/cglm FILES_MATCHING PATTERN *.h)
 set(SHADERS_BUILD_DIR "${CMAKE_BINARY_DIR}/shaders")
 set(SLANG_OUTPUT ${SHADERS_BUILD_DIR}/slang.spv)

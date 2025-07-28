@@ -9,8 +9,8 @@
         #include <wayland-client.h>
         #include <linux/input-event-codes.h>
 
-        #include "xdg-shell-client-protocol.h"
-        #include "xdg-decoration-unstable-v1-client-protocol.h"
+        #include <xdg/xdg-shell-client-protocol.h>
+        #include <xdg/xdg-decoration-unstable-v1-client-protocol.h>
     #endif
 
 enum mouse_buttons {
