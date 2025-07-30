@@ -1,13 +1,12 @@
 #ifndef _VULKAN_WRAPPER_H
     #define _VULKAN_WRAPPER_H
 
-    #ifdef WAYLAND_SURFACE
-    #include "wayland/wayland.h"
-    #define VK_USE_PLATFORM_WAYLAND_KHR
-    #include <wayland-client.h>
+    #ifdef _WIN32
+        #include <Windows.h>
+    #else
+        #include <unistd.h>
     #endif
-
-    #include <unistd.h>
+    #include "surfaces/surface.h"
     #include <stdlib.h>
     #include <stdint.h>
     #include <inttypes.h>
@@ -83,6 +82,7 @@ typedef struct vulkan_context {
 bool vulkan_draw_frame(vulkan_context_t vulkan_context, window_t window, object_t *objects, uint32_t objects_count);
 
 bool vulkan_init(vulkan_context_t vulkan_context,
+    surface_context_t surface_context,
     window_t window,
     const char *engine_name,
     uint32_t engine_version,

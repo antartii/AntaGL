@@ -1,4 +1,4 @@
-#include "vulkan_wrapper.h"
+#include "vulkan/vulkan_wrapper.h"
 
 #ifdef DEBUG
 const char *validation_layers[] = {
@@ -6,7 +6,7 @@ const char *validation_layers[] = {
 };
 #endif
 
-static VKAPI_ATTR VkBool32 VKAPI_CALL vulkan_debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type, const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *)
+static VKAPI_ATTR VkBool32 VKAPI_CALL vulkan_debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type, const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData)
 {
     if (severity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
         fprintf(stderr, "Validation layer: type %" PRIu32 " msg: %s\n", type, pCallbackData->pMessage);
@@ -19,9 +19,7 @@ static void vulkan_get_instance_extensions_names(const char **extensions_names, 
     if (!extensions_names) {
         *extensions_count = 0;
 
-        #ifdef WAYLAND_SURFACE
-        *extensions_count += WAYLAND_EXTENSIONS_COUNT;
-        #endif
+        *extensions_count += SURFACE_EXTENSIONS_COUNT;
         #ifdef DEBUG
         (*extensions_count)++;
         #endif
@@ -31,10 +29,8 @@ static void vulkan_get_instance_extensions_names(const char **extensions_names, 
     int start = 0;
     int offset = 0;
 
-    #ifdef WAYLAND_SURFACE
-    while (offset < start + WAYLAND_EXTENSIONS_COUNT)
-        extensions_names[offset++] = wayland_instance_extensions[offset - start];
-    #endif
+    while (offset < start + SURFACE_EXTENSIONS_COUNT)
+        extensions_names[offset++] = SURFACE_EXTENSIONS_NAMES[offset - start];
 
     #ifdef DEBUG
     extensions_names[offset++] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
@@ -277,7 +273,7 @@ static bool vulkan_create_logical_device(vulkan_context_t context)
     bool is_graphic_also_present = context->queue_family_indices.graphic == context->queue_family_indices.present;
     int queue_count = (is_graphic_also_present) ? 1 : 2;
 
-    VkDeviceQueueCreateInfo device_queue_info[queue_count];
+    VkDeviceQueueCreateInfo *device_queue_info = malloc(sizeof(VkDeviceQueueCreateInfo) * queue_count);
 
     for (int i = 0; i < queue_count; ++i) {
         device_queue_info[i].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
@@ -327,6 +323,8 @@ static bool vulkan_create_logical_device(vulkan_context_t context)
     };
 
     VkResult result = vkCreateDevice(context->physical_device, &device_info, NULL, &context->device);
+    
+    free(device_queue_info);
 
     if (result != VK_SUCCESS)
         return false;
@@ -339,14 +337,14 @@ static bool vulkan_create_logical_device(vulkan_context_t context)
     return true;
 }
 
-static bool vulkan_create_surface(vulkan_context_t context, window_t window)
+static bool vulkan_create_surface(vulkan_context_t context, surface_context_t surface_context)
 {
     #ifdef WAYLAND_SURFACE
     VkWaylandSurfaceCreateInfoKHR surface_info = {
         .sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
         .pNext = NULL,
-        .surface = window->surface,
-        .display = window->display
+        .surface = surface_context->surface,
+        .display = surface_context->display
     };
 
     return vkCreateWaylandSurfaceKHR(context->instance, &surface_info, NULL, &context->surface) == VK_SUCCESS;
@@ -544,12 +542,12 @@ static bool vulkan_create_graphic_pipeline(vulkan_context_t context)
 
     uint32_t vertex_binding_descriptions_count;
     vertex_get_binding_description(&vertex_binding_descriptions_count, NULL);
-    VkVertexInputBindingDescription vertex_binding_descriptions[vertex_binding_descriptions_count];
+    VkVertexInputBindingDescription *vertex_binding_descriptions = malloc(sizeof(VkVertexInputBindingDescription) * vertex_binding_descriptions_count);
     vertex_get_binding_description(&vertex_binding_descriptions_count, vertex_binding_descriptions);
 
     uint32_t vertex_attribute_descriptions_count;
     vertex_get_attribute_description(&vertex_attribute_descriptions_count, NULL);
-    VkVertexInputAttributeDescription vertex_attribute_descriptions[vertex_attribute_descriptions_count];
+    VkVertexInputAttributeDescription *vertex_attribute_descriptions = malloc(sizeof(VkVertexInputAttributeDescription) * vertex_attribute_descriptions_count);
     vertex_get_attribute_description(&vertex_attribute_descriptions_count, vertex_attribute_descriptions);
 
     VkPipelineVertexInputStateCreateInfo vertex_input_info = {
@@ -571,8 +569,8 @@ static bool vulkan_create_graphic_pipeline(vulkan_context_t context)
     context->viewport = (VkViewport) {
         .x = 0,
         .y = 0,
-        .height = context->swapchain_extent.height,
-        .width = context->swapchain_extent.width,
+        .height = (float) context->swapchain_extent.height,
+        .width = (float) context->swapchain_extent.width,
         .minDepth = 0.0f,
         .maxDepth = 1.0f
     };
@@ -671,6 +669,8 @@ static bool vulkan_create_graphic_pipeline(vulkan_context_t context)
     VkResult result = vkCreateGraphicsPipelines(context->device, NULL, 1, &graphic_pipeline_info, NULL, &context->graphic_pipeline);
 
     free(shader_code);
+    free(vertex_binding_descriptions);
+    free(vertex_attribute_descriptions);
     vkDestroyShaderModule(context->device, shader_module, NULL);
 
     return result == VK_SUCCESS;
@@ -877,11 +877,11 @@ void vulkan_update_proj(vulkan_context_t context, camera_t camera)
 {
     mat4 proj;
 
-    glm_perspective(camera->fov_in_radians, context->swapchain_extent.width / context->swapchain_extent.height, camera->render_depth_range[0], camera->render_depth_range[1], proj);
+    glm_perspective(camera->fov_in_radians, (float) (context->swapchain_extent.width / context->swapchain_extent.height), camera->render_depth_range[0], camera->render_depth_range[1], proj);
     proj[1][1] *= -1;
 
     for (size_t i = 0; i <  MAX_FRAMES_IN_FLIGHT; ++i)
-        memcpy(context->uniform_buffers_mapped[i] + sizeof(mat4), &proj, sizeof(mat4));
+        memcpy(PTR_OFFSET(context->uniform_buffers_mapped[i], sizeof(mat4)), &proj, sizeof(mat4));
 }
 
 bool vulkan_draw_frame(vulkan_context_t context, window_t window, object_t *objects, uint32_t objects_count)
@@ -1057,6 +1057,7 @@ bool vulkan_copy_buffer(vulkan_context_t context, VkBuffer *src_buffer, VkBuffer
 
     vkQueueSubmit(context->graphic_queue, 1, &submit_info, NULL);
     vkQueueWaitIdle(context->graphic_queue);
+    return true;
 }
 
 bool vulkan_create_index_buffer(vulkan_context_t context, object_t object, uint16_t *indices, uint32_t indices_count)
@@ -1154,8 +1155,6 @@ static bool vulkan_create_uniform_buffers(vulkan_context_t context)
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
         VkDeviceSize size = sizeof(struct uniform_buffer);
-        VkBuffer buffer;
-        VkDeviceMemory buffer_memory;
 
         if (!vulkan_create_buffer(context, size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &(context->uniform_buffers[i]), &(context->uniform_buffers_memory[i]))
             || vkMapMemory(context->device, context->uniform_buffers_memory[i], 0, size, 0, &(context->uniform_buffers_mapped[i])) != VK_SUCCESS)
@@ -1211,6 +1210,7 @@ static bool vulkan_create_descriptor_sets(vulkan_context_t context)
 }
 
 bool vulkan_init(vulkan_context_t context,
+    surface_context_t surface_context,
     window_t window,
     const char *engine_name,
     uint32_t engine_version,
@@ -1222,7 +1222,7 @@ bool vulkan_init(vulkan_context_t context,
         #ifdef DEBUG
         && vulkan_setup_debug_messenger(context)
         #endif
-        && vulkan_create_surface(context, window)
+        && vulkan_create_surface(context, surface_context)
         && vulkan_pick_physical_device(context)
         && vulkan_create_logical_device(context)
         && vulkan_create_swapchain(context, window)
