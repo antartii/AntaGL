@@ -52,12 +52,18 @@ add_library(${MAIN_TARGET}
     ${PROJECT_SOURCE_DIR}/src/vulkan/vulkan_wrapper.c
     ${PROJECT_SOURCE_DIR}/src/vulkan/vulkan_extension_wrapper.c
 )
-
+if (WIN32)
+    set(INCLUDES_DESTINATION include)
+    set(INSTALL_INTERFACE_INCLUDE include)
+else()
+    set(INCLUDES_DESTINATION include/AntaGL)
+    set(INSTALL_INTERFACE_INCLUDE include/AntaGL)
+endif()
 target_include_directories(${MAIN_TARGET} PUBLIC
     $<BUILD_INTERFACE:${SURFACE_INCLUDES_DIR}>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/includes>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/lib/>
-    $<INSTALL_INTERFACE:include>
+    $<INSTALL_INTERFACE:${INSTALL_INTERFACE_INCLUDE}>
 )
 target_link_libraries(${MAIN_TARGET} PUBLIC ${SURFACE_LIBS})
 target_compile_options(${MAIN_TARGET} PUBLIC ${SURFACE_CFLAGS})
@@ -78,7 +84,7 @@ install(TARGETS ${MAIN_TARGET}
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
 )
-install(DIRECTORY ${PROJECT_SOURCE_DIR}/includes/ DESTINATION include/AntaGL FILES_MATCHING PATTERN "*.h")
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/includes/ DESTINATION ${INCLUDES_DESTINATION} FILES_MATCHING PATTERN "*.h")
 install(DIRECTORY lib/xdg/ DESTINATION include/xdg FILES_MATCHING PATTERN *.h)
 install(DIRECTORY lib/cglm/ DESTINATION include/cglm FILES_MATCHING PATTERN *.h)
 set(SHADERS_BUILD_DIR "${CMAKE_BINARY_DIR}/shaders")
