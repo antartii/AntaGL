@@ -7,7 +7,6 @@
     #include "wayland/wayland.h"
     typedef struct wayland_context surface_context;
     typedef wayland_context_t surface_context_t;
-    #define VK_USE_PLATFORM_WAYLAND_KHR
 
     #define end_surface end_wayland
     #define init_surface init_wayland
@@ -29,7 +28,7 @@
     #define poll_events_surface poll_events_surface_fallback
 
     #define SURFACE_EXTENSIONS_COUNT 0
-    static const char *surface_instance_extensions[] = {};
+    extern const char *surface_instance_extensions[];
     #define SURFACE_EXTENSIONS_NAMES surface_instance_extensions
 #endif
 
