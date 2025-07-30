@@ -1,5 +1,7 @@
 #include "surfaces/surface.h"
 
+const char *surface_instance_extensions[] = {NULL};
+
 bool end_surface_fallback(surface_context_t surface)
 {
     return false;
