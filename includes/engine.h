@@ -16,9 +16,7 @@
     #include "utils.h"
     #include "camera.h"
 
-    #ifdef WAYLAND_SURFACE
-    #include "wayland/wayland.h"
-    #endif
+    #include "surfaces/surface.h"
 
     /**
      * @def ENGINE_ERROR_CODE_DEFAULT
@@ -64,6 +62,7 @@ typedef struct engine
     uint32_t max_objects_to_draw;
 
     struct vulkan_context vulkan_context;
+    surface_context surface_context;
 } * engine_t;
 
 /**

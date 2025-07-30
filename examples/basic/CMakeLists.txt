@@ -6,7 +6,7 @@ project(${MAIN_TARGET} VERSION 1.0.0)
 
 find_package(AntaGL REQUIRED)
 
-include_directories(includes)
 add_executable(${MAIN_TARGET} ${PROJECT_SOURCE_DIR}/src/main.c)
 
-target_link_libraries(${MAIN_TARGET} PUBLIC AntaGL::AntaGL)
+target_include_directories(${MAIN_TARGET} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/includes)
+target_link_libraries(${MAIN_TARGET} PRIVATE AntaGL::AntaGL)

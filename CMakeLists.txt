@@ -12,8 +12,8 @@ set(SURFACE "wayland" CACHE STRING "Select your surface")
 # === SURFACE SELECTION ===
 if (SURFACE STREQUAL "wayland")
     file(GLOB_RECURSE LIB_SOURCES ${PROJECT_SOURCE_DIR}/lib/xdg/*.c)
-    set(SURFACE_SOURCES ${PROJECT_SOURCE_DIR}/src/wayland/wayland.c)
-    set(SURFACE_INCLUDES_DIR ${PROJECT_SOURCE_DIR}/includes/wayland
+    set(SURFACE_SOURCES ${PROJECT_SOURCE_DIR}/src/surfaces/wayland/wayland.c)
+    set(SURFACE_INCLUDES_DIR ${PROJECT_SOURCE_DIR}/includes/surfaces/wayland
         ${PROJECT_SOURCE_DIR}/lib/xdg
     )
 
@@ -41,15 +41,15 @@ add_library(${MAIN_TARGET}
     ${PROJECT_SOURCE_DIR}/src/vertex.c
     ${PROJECT_SOURCE_DIR}/src/object.c
     ${PROJECT_SOURCE_DIR}/src/camera.c
+    ${PROJECT_SOURCE_DIR}/src/surfaces/surface.c
     ${PROJECT_SOURCE_DIR}/src/vulkan/vulkan_wrapper.c
     ${PROJECT_SOURCE_DIR}/src/vulkan/vulkan_extension_wrapper.c
 )
 target_include_directories(${MAIN_TARGET} PUBLIC
     $<BUILD_INTERFACE:${SURFACE_INCLUDES_DIR}>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/includes>
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/includes/vulkan>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/lib/>
-    $<INSTALL_INTERFACE:include>
+    $<INSTALL_INTERFACE:include/AntaGL>
 )
 target_link_libraries(${MAIN_TARGET} PUBLIC ${SURFACE_LIBS})
 target_compile_options(${MAIN_TARGET} PUBLIC ${SURFACE_CFLAGS})
@@ -70,9 +70,9 @@ install(TARGETS ${MAIN_TARGET}
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
 )
-install(DIRECTORY includes/ DESTINATION include FILES_MATCHING PATTERN "*.h")
-install(DIRECTORY lib/xdg/ DESTINATION include/xdg FILES_MATCHING PATTERN *.h)
-install(DIRECTORY lib/cglm/ DESTINATION include/cglm FILES_MATCHING PATTERN *.h)
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/includes/ DESTINATION include/AntaGL FILES_MATCHING PATTERN "*.h")
+install(DIRECTORY lib/xdg/ DESTINATION include/AntaGL/xdg FILES_MATCHING PATTERN *.h)
+install(DIRECTORY lib/cglm/ DESTINATION include/AntaGL/cglm FILES_MATCHING PATTERN *.h)
 set(SHADERS_BUILD_DIR "${CMAKE_BINARY_DIR}/shaders")
 set(SLANG_OUTPUT ${SHADERS_BUILD_DIR}/slang.spv)
 install(FILES ${SLANG_OUTPUT} DESTINATION share/${MAIN_TARGET}/shaders)

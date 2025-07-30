@@ -1,4 +1,4 @@
-#include "vulkan_extension_wrapper.h"
+#include "vulkan/vulkan_extension_wrapper.h"
 
 bool vulkan_init_extensions_functions(VkInstance instance, vulkan_extensions_functions_t vulkan_extensions_functions)
 {

@@ -1,4 +1,4 @@
-#include "vulkan_wrapper.h"
+#include "vulkan/vulkan_wrapper.h"
 
 #ifdef DEBUG
 const char *validation_layers[] = {
@@ -19,9 +19,7 @@ static void vulkan_get_instance_extensions_names(const char **extensions_names, 
     if (!extensions_names) {
         *extensions_count = 0;
 
-        #ifdef WAYLAND_SURFACE
-        *extensions_count += WAYLAND_EXTENSIONS_COUNT;
-        #endif
+        *extensions_count += SURFACE_EXTENSIONS_COUNT;
         #ifdef DEBUG
         (*extensions_count)++;
         #endif
@@ -31,10 +29,8 @@ static void vulkan_get_instance_extensions_names(const char **extensions_names, 
     int start = 0;
     int offset = 0;
 
-    #ifdef WAYLAND_SURFACE
-    while (offset < start + WAYLAND_EXTENSIONS_COUNT)
-        extensions_names[offset++] = wayland_instance_extensions[offset - start];
-    #endif
+    while (offset < start + SURFACE_EXTENSIONS_COUNT)
+        extensions_names[offset++] = SURFACE_EXTENSIONS_NAMES[offset - start];
 
     #ifdef DEBUG
     extensions_names[offset++] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
@@ -341,14 +337,14 @@ static bool vulkan_create_logical_device(vulkan_context_t context)
     return true;
 }
 
-static bool vulkan_create_surface(vulkan_context_t context, window_t window)
+static bool vulkan_create_surface(vulkan_context_t context, surface_context_t surface_context)
 {
     #ifdef WAYLAND_SURFACE
     VkWaylandSurfaceCreateInfoKHR surface_info = {
         .sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
         .pNext = NULL,
-        .surface = window->surface,
-        .display = window->display
+        .surface = surface_context->surface,
+        .display = surface_context->display
     };
 
     return vkCreateWaylandSurfaceKHR(context->instance, &surface_info, NULL, &context->surface) == VK_SUCCESS;
@@ -1214,6 +1210,7 @@ static bool vulkan_create_descriptor_sets(vulkan_context_t context)
 }
 
 bool vulkan_init(vulkan_context_t context,
+    surface_context_t surface_context,
     window_t window,
     const char *engine_name,
     uint32_t engine_version,
@@ -1225,7 +1222,7 @@ bool vulkan_init(vulkan_context_t context,
         #ifdef DEBUG
         && vulkan_setup_debug_messenger(context)
         #endif
-        && vulkan_create_surface(context, window)
+        && vulkan_create_surface(context, surface_context)
         && vulkan_pick_physical_device(context)
         && vulkan_create_logical_device(context)
         && vulkan_create_swapchain(context, window)

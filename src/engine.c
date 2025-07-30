@@ -21,21 +21,15 @@ void engine_cleanup(engine_t engine)
 
     vulkan_cleanup(&engine->vulkan_context);
 
-    #ifdef WAYLAND_SURFACE
-    end_wayland(engine->window);
-    #endif
+    end_surface(&engine->surface_context);
 
     free(engine->window);
     free(engine);
 }
 
-static bool engine_init_window(window_t window)
+static bool engine_init_window(window_t window, surface_context_t surface)
 {
-    #ifdef WAYLAND_SURFACE
-    return init_wayland(window);
-    #else
-    return false;
-    #endif
+    return init_surface(surface, window);
 }
 
 static void engine_init(engine_t engine, const char *application_name, uint32_t application_version, int window_width, int window_height)
@@ -47,10 +41,10 @@ static void engine_init(engine_t engine, const char *application_name, uint32_t 
     engine->window->height = window_height;
     engine->window->title = application_name;
 
-    if (!engine_init_window(engine->window))
+    if (!engine_init_window(engine->window, &engine->surface_context))
         engine_error(engine, "engine_init: window couldn't be inited\n", true);
 
-    if (!vulkan_init(&engine->vulkan_context, engine->window, ENGINE_NAME, ENGINE_VERSION, application_name, application_version))
+    if (!vulkan_init(&engine->vulkan_context, &engine->surface_context, engine->window, ENGINE_NAME, ENGINE_VERSION, application_name, application_version))
         engine_error(engine, "engine_init: failed to init vulkan\n", true);
 }
 
@@ -74,9 +68,7 @@ void engine_wait_idle(engine_t engine)
 
 void engine_poll_events(engine_t engine)
 {
-    #ifdef WAYLAND_SURFACE
-    wl_display_dispatch(engine->window->display);
-    #endif   
+    poll_events_surface(&engine->surface_context);
 }
 
 bool engine_should_close(engine_t engine)
