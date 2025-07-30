@@ -1,13 +1,12 @@
 #ifndef _VULKAN_WRAPPER_H
     #define _VULKAN_WRAPPER_H
 
-    #include "surfaces/surface.h"
-
     #ifdef _WIN32
         #include <Windows.h>
     #else
         #include <unistd.h>
     #endif
+    #include "surfaces/surface.h"
     #include <stdlib.h>
     #include <stdint.h>
     #include <inttypes.h>
@@ -24,7 +23,6 @@
     #include "vertex.h"
     #include "object.h"
     #include "camera.h"
-    #include "surfaces/surface.h"
 
 #ifdef DEBUG
 #define ENGINE_VALIDATION_LAYERS_COUNT 1

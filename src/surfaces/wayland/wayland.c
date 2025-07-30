@@ -1,4 +1,4 @@
-#include "wayland/wayland.h"
+#include "surfaces/wayland/wayland.h"
 
 /*
     ----- INFO -----
