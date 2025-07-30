@@ -22,6 +22,13 @@ if (SURFACE STREQUAL "wayland")
     set(SURFACE_LIBS ${WAYLAND_LIBRARIES})
     set(SURFACE_CFLAGS ${WAYLAND_CFLAGS_OTHER})
     set(SURFACE_CDEF WAYLAND_SURFACE)
+elseif()
+    set(LIB_SOURCES)
+    set(SURFACE_SOURCES ${PROJECT_SOURCE_DIR}/src/windows_surface/windows_surface.c)
+    set(SURFACE_INCLUDES_DIR ${PROJECT_SOURCE_DIR}/includes/windows_surface)
+    set(SURFACE_LIBS)
+    set(SURFACE_CFLAGS)
+    set(SURFACE_CDEF)
 else()
     set(LIB_SOURCES)
     set(SURFACE_SOURCES)
@@ -49,7 +56,7 @@ target_include_directories(${MAIN_TARGET} PUBLIC
     $<BUILD_INTERFACE:${SURFACE_INCLUDES_DIR}>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/includes>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/lib/>
-    $<INSTALL_INTERFACE:include/AntaGL>
+    $<INSTALL_INTERFACE:include>
 )
 target_link_libraries(${MAIN_TARGET} PUBLIC ${SURFACE_LIBS})
 target_compile_options(${MAIN_TARGET} PUBLIC ${SURFACE_CFLAGS})
@@ -71,8 +78,8 @@ install(TARGETS ${MAIN_TARGET}
     RUNTIME DESTINATION bin
 )
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/includes/ DESTINATION include/AntaGL FILES_MATCHING PATTERN "*.h")
-install(DIRECTORY lib/xdg/ DESTINATION include/AntaGL/xdg FILES_MATCHING PATTERN *.h)
-install(DIRECTORY lib/cglm/ DESTINATION include/AntaGL/cglm FILES_MATCHING PATTERN *.h)
+install(DIRECTORY lib/xdg/ DESTINATION include/xdg/ FILES_MATCHING PATTERN *.h)
+install(DIRECTORY lib/cglm/ DESTINATION include/cglm/ FILES_MATCHING PATTERN *.h)
 set(SHADERS_BUILD_DIR "${CMAKE_BINARY_DIR}/shaders")
 set(SLANG_OUTPUT ${SHADERS_BUILD_DIR}/slang.spv)
 install(FILES ${SLANG_OUTPUT} DESTINATION share/${MAIN_TARGET}/shaders)
