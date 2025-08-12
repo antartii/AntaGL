@@ -1,9 +1,7 @@
 #ifndef _VULKAN_WRAPPER_H
     #define _VULKAN_WRAPPER_H
 
-    #ifdef _WIN32
-        #include <Windows.h>
-    #else
+    #ifndef _WIN32
         #include <unistd.h>
     #endif
     #include "surfaces/surface.h"
@@ -34,6 +32,12 @@ extern const char *validation_layers[];
 #define SHADER_VERTEX_ENTRY_POINT "vertMain"
 #define SHADER_FRAGMENT_ENTRY_POINT "fragMain"
 #define MAX_FRAMES_IN_FLIGHT 2
+
+#ifdef _WIN32
+    #define SHADER_FILE_PATH "C:/Program Files (x86)/AntaGL/share/AntaGL/shaders/slang.spv"
+#else
+    #define SHADER_FILE_PATH "/usr/local/share/AntaGL/shaders/slang.spv"
+#endif
 
 struct queue_family_indices {
     uint32_t graphic;

@@ -11,8 +11,22 @@
     #define end_surface end_wayland
     #define init_surface init_wayland
     #define poll_events_surface poll_events_wayland
-    #define SURFACE_EXTENSIONS_COUNT 2
+    #define SURFACE_EXTENSIONS_COUNT 1
     #define SURFACE_EXTENSIONS_NAMES wayland_instance_extensions
+
+#elif WIN32_SURFACE
+    #include <Windows.h>
+    #include "windows_surface/windows_surface.h"
+    typedef struct windows_surface_context surface_context;
+    typedef windows_surface_context_t surface_context_t;
+
+    #define end_surface end_windows_surface
+    #define init_surface init_windows_surface
+    #define poll_events_surface poll_events_windows_surface
+
+    #define SURFACE_EXTENSIONS_COUNT 1
+    #define SURFACE_EXTENSIONS_NAMES windows_surface_instance_extensions
+
 #else
     typedef struct surface {
         int test;
