@@ -56,7 +56,7 @@ char *read_file(const char *file_name, uint32_t *buffer_size)
     }
     #ifdef DEBUG 
     else
-        write(STDERR_FILENO, "Couldn't open the file\n", 24);
+        printf("Couldn't open the file %s\n", file_name);
     #endif
 
     return buffer;

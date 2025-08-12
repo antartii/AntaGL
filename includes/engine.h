@@ -107,7 +107,7 @@ bool engine_draw(engine_t engine, object_t object);
  * 
  * @param engine Pointer to the engine to poll the events
  */
-void engine_poll_events(engine_t engine);
+bool engine_poll_events(engine_t engine);
 /**
  * @brief Returns a boolean if the window or application should close due to internal events, such as closing the window or any critical errors
  * It is recommended to wait for this event to be true before cleaning up the engine with `engine_cleanup`.

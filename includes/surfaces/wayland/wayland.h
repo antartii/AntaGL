@@ -4,11 +4,7 @@
     #include <stdio.h>
     #include <wayland-client.h>
     #include <stdbool.h>
-    #ifdef _WIN32
-        #include <Windows.h>
-    #else
-        #include <unistd.h>
-    #endif
+    #include <unistd.h>
     #include <stdint.h>
     #include <string.h>
     #include <time.h>
@@ -19,6 +15,8 @@
     #include <xdg/xdg-shell-client-protocol.h>
     #include <linux/input-event-codes.h>
     #include <xdg/xdg-decoration-unstable-v1-client-protocol.h>
+
+    #define VK_USE_PLATFORM_WAYLAND_KHR
 
     #include "window.h"
 

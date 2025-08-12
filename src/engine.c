@@ -43,7 +43,6 @@ static void engine_init(engine_t engine, const char *application_name, uint32_t 
 
     if (!engine_init_window(engine->window, &engine->surface_context))
         engine_error(engine, "engine_init: window couldn't be inited\n", true);
-
     if (!vulkan_init(&engine->vulkan_context, &engine->surface_context, engine->window, ENGINE_NAME, ENGINE_VERSION, application_name, application_version))
         engine_error(engine, "engine_init: failed to init vulkan\n", true);
 }
@@ -66,9 +65,13 @@ void engine_wait_idle(engine_t engine)
     vkDeviceWaitIdle(engine->vulkan_context.device);
 }
 
-void engine_poll_events(engine_t engine)
+bool engine_poll_events(engine_t engine)
 {
-    poll_events_surface(&engine->surface_context);
+    if (!poll_events_surface(&engine->surface_context)) {
+        engine->window->should_close = true;
+        return false;
+    }
+    return true;
 }
 
 bool engine_should_close(engine_t engine)

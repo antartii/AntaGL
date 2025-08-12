@@ -17,17 +17,17 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL vulkan_debug_callback(VkDebugUtilsMessageS
 static void vulkan_get_instance_extensions_names(const char **extensions_names, uint32_t *extensions_count)
 {
     if (!extensions_names) {
-        *extensions_count = 0;
-
-        *extensions_count += SURFACE_EXTENSIONS_COUNT;
+        *extensions_count = 1 + SURFACE_EXTENSIONS_COUNT;
         #ifdef DEBUG
         (*extensions_count)++;
         #endif
         return;
     }
 
-    int start = 0;
+    int start = 1;
     int offset = 0;
+
+    extensions_names[offset++] = VK_KHR_SURFACE_EXTENSION_NAME;
 
     while (offset < start + SURFACE_EXTENSIONS_COUNT)
         extensions_names[offset++] = SURFACE_EXTENSIONS_NAMES[offset - start];
@@ -339,6 +339,7 @@ static bool vulkan_create_logical_device(vulkan_context_t context)
 
 static bool vulkan_create_surface(vulkan_context_t context, surface_context_t surface_context)
 {
+    VkResult result = false;
     #ifdef WAYLAND_SURFACE
     VkWaylandSurfaceCreateInfoKHR surface_info = {
         .sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
@@ -347,10 +348,18 @@ static bool vulkan_create_surface(vulkan_context_t context, surface_context_t su
         .display = surface_context->display
     };
 
-    return vkCreateWaylandSurfaceKHR(context->instance, &surface_info, NULL, &context->surface) == VK_SUCCESS;
-    #else
-    return false;
+    result = vkCreateWaylandSurfaceKHR(context->instance, &surface_info, NULL, &context->surface) == VK_SUCCESS;
+    #elif WIN32_SURFACE
+    VkWin32SurfaceCreateInfoKHR surface_info = {
+        .sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
+        .pNext = NULL,
+        .hinstance = surface_context->handle,
+        .hwnd = surface_context->hwnd
+    };
+
+    result = vkCreateWin32SurfaceKHR(context->instance, &surface_info, NULL, &context->surface);
     #endif
+    return result == VK_SUCCESS;
 }
 
 static VkSurfaceFormatKHR vulkan_choose_swapchain_surface_format(const VkSurfaceFormatKHR *available_formats, const uint32_t available_formats_count)
@@ -502,7 +511,7 @@ static bool vulkan_create_graphic_pipeline(vulkan_context_t context)
     uint32_t code_size;
     const char *shader_file = getenv("ANTAGL_SHADER_PATH");
     if (!shader_file)
-        shader_file = "/usr/local/share/AntaGL/shaders/slang.spv";
+        shader_file = SHADER_FILE_PATH;
     char *shader_code = read_file(shader_file, &code_size);
 
     VkShaderModule shader_module = vulkan_create_shader_module(context->device, shader_code, code_size);
@@ -831,15 +840,18 @@ static bool vulkan_create_sync_objects(vulkan_context_t context)
     };
 
     context->present_complete_semaphores = malloc(sizeof(VkSemaphore) * MAX_FRAMES_IN_FLIGHT);
-    context->render_finished_semaphores = malloc(sizeof(VkSemaphore) * MAX_FRAMES_IN_FLIGHT);
+    context->render_finished_semaphores = malloc(sizeof(VkSemaphore) * context->swapchain_images_count);
     context->in_fligh_fences = malloc(sizeof(VkFence) * MAX_FRAMES_IN_FLIGHT);
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
         if (vkCreateSemaphore(context->device, &semaphore_info, NULL, &(context->present_complete_semaphores[i])) != VK_SUCCESS
-        || vkCreateSemaphore(context->device, &semaphore_info, NULL, &(context->render_finished_semaphores[i])) != VK_SUCCESS
         || vkCreateFence(context->device, &fence_info, NULL, (&context->in_fligh_fences[i])) != VK_SUCCESS)
             return false;
-        
+    }
+
+    for (size_t i = 0; i < context->swapchain_images_count; ++i) {
+        if (vkCreateSemaphore(context->device, &semaphore_info, NULL, &(context->render_finished_semaphores[i])) != VK_SUCCESS)
+            return false;
     }
     return true;
 }
@@ -857,11 +869,13 @@ static void vulkan_cleanup_swapchain(vulkan_context_t context)
 
 void vulkan_recreate_swapchain(vulkan_context_t context, window_t window)
 {
-    vkDeviceWaitIdle(context->device);
-    vulkan_cleanup_swapchain(context);
+    if (window->height != 0 && window->width != 0) {
+        vkDeviceWaitIdle(context->device);
+        vulkan_cleanup_swapchain(context);
 
-    vulkan_create_swapchain(context, window);
-    vulkan_create_image_view(context);
+        vulkan_create_swapchain(context, window);
+        vulkan_create_image_view(context);
+    }
 }
 
 void vulkan_update_view(vulkan_context_t context, camera_t camera)
@@ -896,8 +910,6 @@ bool vulkan_draw_frame(vulkan_context_t context, window_t window, object_t *obje
         || window->framebuffer_resized
         #endif
     ) {
-        vkResetFences(context->device, 1, &context->in_fligh_fences[context->current_frame]);
-
         VkSubmitInfo dummy_submit = {
             .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
             .waitSemaphoreCount = 1,
@@ -906,9 +918,11 @@ bool vulkan_draw_frame(vulkan_context_t context, window_t window, object_t *obje
             .commandBufferCount = 0,
             .signalSemaphoreCount = 0,
             .pCommandBuffers = NULL,
-            .pSignalSemaphores = NULL,
+            .pSignalSemaphores = NULL
         };
-        vkQueueSubmit(context->graphic_queue, 1, &dummy_submit, context->in_fligh_fences[context->current_frame]);
+
+        vkQueueSubmit(context->graphic_queue, 1, &dummy_submit, context->in_fligh_fences[context->image_index]);
+        
         vulkan_recreate_swapchain(context, window);
         #ifdef WAYLAND_SURFACE
         window->framebuffer_resized = false;
@@ -931,7 +945,7 @@ bool vulkan_draw_frame(vulkan_context_t context, window_t window, object_t *obje
         .waitSemaphoreCount = 1,
         .pWaitSemaphores = &(context->present_complete_semaphores[context->current_frame]),
         .signalSemaphoreCount = 1,
-        .pSignalSemaphores = &(context->render_finished_semaphores[context->current_frame]),
+        .pSignalSemaphores = &(context->render_finished_semaphores[context->image_index]),
         .pWaitDstStageMask = &wait_destination_stage_mask,
         .commandBufferCount = 1,
         .pCommandBuffers = &(context->command_buffers[context->current_frame])
@@ -943,7 +957,7 @@ bool vulkan_draw_frame(vulkan_context_t context, window_t window, object_t *obje
         .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
         .pNext = NULL,
         .waitSemaphoreCount = 1,
-        .pWaitSemaphores = &(context->render_finished_semaphores[context->current_frame]),
+        .pWaitSemaphores = &(context->render_finished_semaphores[context->image_index]),
         .swapchainCount = 1,
         .pSwapchains = &context->swapchain,
         .pImageIndices = &context->image_index,
@@ -978,7 +992,7 @@ static bool vulkan_find_memory_type(vulkan_context_t context, uint32_t type_filt
     }
 
     #ifdef DEBUG
-    write(STDERR_FILENO, "failed to find suitable memory type\n", 37);
+    write(STDERR_FILENO, "Failed to find suitable memory type\n", 37);
     #endif
     return false;
 }
@@ -1259,7 +1273,7 @@ void vulkan_cleanup(vulkan_context_t context)
                 vkDestroySemaphore(context->device, context->present_complete_semaphores[i], NULL);
         }
         if (context->render_finished_semaphores) {
-            for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+            for (size_t i = 0; i < context->swapchain_images_count; ++i)
                 vkDestroySemaphore(context->device, context->render_finished_semaphores[i], NULL);
         }        
         if (context->in_fligh_fences) {

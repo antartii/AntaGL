@@ -6,7 +6,6 @@
 */
 
 const char *wayland_instance_extensions[] = {
-    "VK_KHR_surface",
     "VK_KHR_wayland_surface"
 };
 
