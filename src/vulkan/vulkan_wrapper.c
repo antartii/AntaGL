@@ -348,7 +348,7 @@ static bool vulkan_create_surface(vulkan_context_t context, surface_context_t su
         .display = surface_context->display
     };
 
-    result = vkCreateWaylandSurfaceKHR(context->instance, &surface_info, NULL, &context->surface) == VK_SUCCESS;
+    result = vkCreateWaylandSurfaceKHR(context->instance, &surface_info, NULL, &context->surface);
     #elif WIN32_SURFACE
     VkWin32SurfaceCreateInfoKHR surface_info = {
         .sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,

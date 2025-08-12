@@ -49,17 +49,6 @@ typedef struct wayland_context {
 extern const char *wayland_instance_extensions[];
 
 /**
- * @def SURFACE_EXTENSIONS_NAMES 
- * @brief names for the wayland extensions
- */
-#define SURFACE_EXTENSIONS_NAMES wayland_instance_extensions
-/**
- * @def SURFACE_EXTENSIONS_COUNT
- * @brief Total count of extensions stored in SURFACE_EXTENSIONS_NAMES
- */
-#define SURFACE_EXTENSIONS_COUNT 2
-
-/**
  * @brief Initialize wayland and a window using wayland
  * 
  * @param window Pointer to the window to update
