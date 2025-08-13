@@ -4,6 +4,10 @@
     #include "vertex.h"
     #include "vulkan/shaders.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * @brief typedef to the engine structure needed by some objects functions from "engine.h"
  */
@@ -74,5 +78,9 @@ object_t object_create_triangle(engine_t engine, mat3x2 vertices_pos, vec3 color
  * @return object_t 
  */
 object_t object_create_rectangle(engine_t engine, vec2 pos, vec2 size, vec3 color);
+
+#ifdef __cplusplus
+    }
+#endif
 
 #endif

@@ -19,6 +19,11 @@
      */
     #define CAMERA_FOV_DEFAULT_DEGREES glm_rad(45.0f)
 
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * @struct camera
  * @brief Structure representing a camera object in a 3D space
@@ -50,5 +55,9 @@ typedef struct camera {
  * @param camera Pointer to a camera that will be initialize to its default values
  */
 void camera_init(camera_t camera);
+
+#ifdef __cplusplus
+    }
+#endif
 
 #endif

@@ -26,6 +26,10 @@
     #define NONE 0
     #define PTR_OFFSET(ptr, offset) ((void *)(((char *)(ptr)) + (offset)))
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * @brief Convert an integer to a string
  * 
@@ -78,5 +82,9 @@ int max_int(int val, int max);
  * @return An allocated string containing the content of a file
  */
 char *read_file(const char *file_name, uint32_t *buffer_size);
+
+#ifdef __cplusplus
+    }
+#endif
 
 #endif
