@@ -3,7 +3,7 @@
 
 void run(engine_t engine)
 {
-    vec2 pos = {-1.0f, -1.0f};
+    vec2 pos = {0, 0};
     vec2 size = {1.0f, 1.0f};
     vec3 color = {1.0f, 1.0f, 1.0f};
 
@@ -16,9 +16,11 @@ void run(engine_t engine)
     };
     object_t triangle = object_create_triangle(engine, tri_pos, color);
 
+    object_t circle = object_create_circle(engine, pos, 0.5f, color, CIRCLE_DEFAULT_OUTSIDE_VERTICES_COUNT);
+
     while (!engine_should_close(engine)) {
         if (!engine_poll_events(engine)
-            || !engine_draw(engine, rectangle)
+            || !engine_draw(engine, circle)
             || !engine_display(engine))
             break;
     }
@@ -26,6 +28,7 @@ void run(engine_t engine)
 
     object_destroy(engine, rectangle);
     object_destroy(engine, triangle);
+    object_destroy(engine, circle);
 }
 
 #ifdef _WIN32

@@ -4,6 +4,8 @@
     #include "vertex.h"
     #include "vulkan/shaders.h"
 
+    #define CIRCLE_DEFAULT_OUTSIDE_VERTICES_COUNT 40
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -79,8 +81,9 @@ object_t object_create_triangle(engine_t engine, mat3x2 vertices_pos, vec3 color
  */
 object_t object_create_rectangle(engine_t engine, vec2 pos, vec2 size, vec3 color);
 
+object_t object_create_circle(engine_t engine, vec2 pos, float radius, vec3 color, unsigned int outside_vertices_count);
+
 #ifdef __cplusplus
     }
 #endif
-
 #endif

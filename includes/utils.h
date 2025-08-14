@@ -4,6 +4,7 @@
     #include <stdio.h>
     #include <stdlib.h>
     #include <stdint.h>
+    #include <cglm/cglm.h>
     #ifdef _WIN32
         #include <Windows.h>
         #include <io.h>
@@ -25,6 +26,7 @@
      */
     #define NONE 0
     #define PTR_OFFSET(ptr, offset) ((void *)(((char *)(ptr)) + (offset)))
+    #define DEGREES_TO_RADIANS(x) ((x) * (M_PI / 180.f))
 
 #ifdef __cplusplus
 extern "C" {
@@ -82,6 +84,8 @@ int max_int(int val, int max);
  * @return An allocated string containing the content of a file
  */
 char *read_file(const char *file_name, uint32_t *buffer_size);
+
+void find_circle_point(vec2 center, float radius, float degreesAngle, vec2 dest);
 
 #ifdef __cplusplus
     }

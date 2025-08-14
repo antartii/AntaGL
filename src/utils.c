@@ -61,3 +61,11 @@ char *read_file(const char *file_name, uint32_t *buffer_size)
 
     return buffer;
 }
+
+void find_circle_point(vec2 center, float radius, float degreesAngle, vec2 dest)
+{
+    double sinAngle = sin(DEGREES_TO_RADIANS(degreesAngle));
+    double cosAngle = cos(DEGREES_TO_RADIANS(degreesAngle));
+
+    glm_vec2_copy((vec2) {center[0] + (radius * cosAngle), center[1] + (radius * sinAngle)}, dest);
+}

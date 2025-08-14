@@ -62,3 +62,40 @@ object_t object_create_rectangle(engine_t engine, vec2 pos, vec2 size, vec3 colo
 
     return object_create(engine, vertices, color, indices, 4);
 }
+
+/*
+    Drawing circles with triangles fans by default, because we will use big circles most of the time
+    but need to do an option to draw it with fragmentation shader (maybe ?)
+    https://www.reddit.com/r/vulkan/comments/vx5xyb/rendering_circles_triangle_fans_vs_code_in_the/
+*/
+object_t object_create_circle(engine_t engine, vec2 pos, float radius, vec3 color, unsigned int outside_vertices_count)
+{
+    if (outside_vertices_count < 3)
+        return NULL;
+
+    int vertices_count = outside_vertices_count + 2; // +1 for center point == ending point
+    vec2 *vertices_pos = malloc(sizeof(vec2) * vertices_count);
+    uint16_t *indices = malloc(sizeof(uint16_t) * ((vertices_count + 1) * 3)); // +1 for center point == ending point
+
+    glm_vec2_copy(pos, vertices_pos[0]);
+
+    float degreesStep = 360.f / outside_vertices_count;
+    float currentAngle = 0.f;
+    int indicesIndex = 0;
+
+    for (unsigned int i = 1; i < outside_vertices_count + 1; ++i) {
+        find_circle_point(pos, radius, currentAngle, vertices_pos[i]);
+        currentAngle += degreesStep;
+
+        indices[indicesIndex++] = 0;
+        indices[indicesIndex++] = i;
+        indices[indicesIndex++] = i + 1;
+    }
+
+    find_circle_point(pos, radius, currentAngle, vertices_pos[outside_vertices_count + 1]);
+    indices[indicesIndex++] = 0;
+    indices[indicesIndex++] = outside_vertices_count + 1;
+    indices[indicesIndex++] = 1;
+
+    return object_create(engine, vertices_pos, color, indices, vertices_count);
+}

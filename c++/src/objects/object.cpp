@@ -41,4 +41,14 @@ namespace AntaGL {
     {
 
     }
+
+    // === CIRCLES ===
+    Circle::Circle(AntaGL::Engine &engine, vec2 center, float radius, vec3 color, unsigned int outsideVerticesCount):
+        Object(object_create_circle(engine.data(), center, radius, color, outsideVerticesCount))
+    {
+    }
+
+    Circle::~Circle()
+    {
+    }
 }

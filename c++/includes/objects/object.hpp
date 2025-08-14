@@ -31,6 +31,12 @@ namespace AntaGL {
             Rectangle(AntaGL::Engine &engine, vec2 pos, vec2 size, vec3 color);
             ~Rectangle();
     };
+
+    class Circle : public Object {
+        public:
+            Circle(AntaGL::Engine &engine, vec2 center, float radius, vec3 color, unsigned int outsideVerticesCount = CIRCLE_DEFAULT_OUTSIDE_VERTICES_COUNT);
+            ~Circle();
+    };
 }
 
 #endif
