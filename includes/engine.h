@@ -11,7 +11,7 @@
     #include <stdlib.h>
     #include <stdbool.h>
 
-    #include "window.h"
+    #include "surfaces/window.h"
     #include "vulkan/vulkan_wrapper.h"
     #include "utils.h"
     #include "camera.h"
@@ -33,6 +33,10 @@
      * Current version of the engine, used by VkApplicationInfo
      */
     #define ENGINE_VERSION VK_MAKE_VERSION(1, 0, 0)
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  * @struct engine
@@ -131,5 +135,9 @@ void engine_wait_idle(engine_t engine);
  * @param engine Pointer to the engine where the camera view and projection will be updated
  */
 void engine_update_camera(engine_t engine);
+
+#ifdef __cplusplus
+    }
+#endif
 
 #endif

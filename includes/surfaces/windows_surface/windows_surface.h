@@ -15,6 +15,10 @@
 
 #define CLASS_NAME L"AntaGLWindow"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct windows_surface_context {
     HWND hwnd;
     HINSTANCE handle;
@@ -29,5 +33,9 @@ bool init_windows_surface(windows_surface_context_t surface, window_t window);
 bool poll_events_windows_surface(windows_surface_context_t surface);
 
 extern const char *windows_surface_instance_extensions[];
+
+#ifdef __cplusplus
+    }
+#endif
 
 #endif

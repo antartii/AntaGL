@@ -53,11 +53,11 @@ add_library(${MAIN_TARGET}
     ${PROJECT_SOURCE_DIR}/src/vulkan/vulkan_extension_wrapper.c
 )
 if (WIN32)
-    set(INCLUDES_DESTINATION include/AntaGL)
+    set(INCLUDES_DESTINATION include/${MAIN_TARGET})
     set(INSTALL_INTERFACE_INCLUDE include)
 else()
-    set(INCLUDES_DESTINATION include/AntaGL)
-    set(INSTALL_INTERFACE_INCLUDE include/AntaGL)
+    set(INCLUDES_DESTINATION include/${MAIN_TARGET})
+    set(INSTALL_INTERFACE_INCLUDE include/${MAIN_TARGET})
 endif()
 target_include_directories(${MAIN_TARGET} PUBLIC
     $<BUILD_INTERFACE:${SURFACE_INCLUDES_DIR}>

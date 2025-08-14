@@ -3,7 +3,17 @@
 
     #include <stdbool.h>
 
-    #include "utils.h"
+    #include "../utils.h"
+
+    /**
+     * @def WINDOW_EDGE_MARGIN
+     * @brief Define the margin of error for the detection of the window edge 
+     */
+    #define WINDOW_EDGE_MARGIN 10.f
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 enum mouse_buttons {
     MOUSE_BTN_LEFT = 1 << 0,
@@ -16,12 +26,6 @@ enum mouse_state_bitmask {
     MOUSE_STATE_MOVING_WINDOW = 1 << 1, // not used for now because we need to track when it's not moving
     MOUSE_STATE_CLICK = 1 << 2
 };
-
-/**
- * @def WINDOW_EDGE_MARGIN
- * @brief Define the margin of error for the detection of the window edge 
- */
-#define WINDOW_EDGE_MARGIN 10.f
 
 /**
  * @struct mouse
@@ -70,5 +74,9 @@ typedef struct window
     bool framebuffer_resized;
     const char *title;
 } * window_t;
+
+#ifdef __cplusplus
+    }
+#endif
 
 #endif

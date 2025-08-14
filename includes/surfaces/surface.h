@@ -28,6 +28,11 @@
     #define SURFACE_EXTENSIONS_NAMES windows_surface_instance_extensions
 
 #else
+
+    #ifdef __cplusplus
+    extern "C" {
+    #endif
+
     typedef struct surface {
         int test;
     } surface_context;
@@ -36,6 +41,10 @@
     bool end_surface_fallback(surface_context_t surface);
     bool init_surface_fallback(surface_context_t surface, window_t window);
     bool poll_events_surface_fallback(surface_context_t surface);
+
+    #ifdef __cplusplus
+    }
+    #endif
 
     #define end_surface end_surface_fallback
     #define init_surface init_surface_fallback

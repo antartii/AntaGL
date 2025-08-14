@@ -4,7 +4,7 @@
     #ifndef _WIN32
         #include <unistd.h>
     #endif
-    #include "surfaces/surface.h"
+    #include "../surfaces/surface.h"
     #include <stdlib.h>
     #include <stdint.h>
     #include <inttypes.h>
@@ -15,12 +15,12 @@
     #include <stdalign.h>
     #include <time.h>
 
-    #include "window.h"
-    #include "utils.h"
+    #include "../surfaces/window.h"
+    #include "../utils.h"
     #include "vulkan_extension_wrapper.h"
-    #include "vertex.h"
-    #include "object.h"
-    #include "camera.h"
+    #include "../vertex.h"
+    #include "../object.h"
+    #include "../camera.h"
 
 #ifdef DEBUG
 #define ENGINE_VALIDATION_LAYERS_COUNT 1
@@ -37,6 +37,10 @@ extern const char *validation_layers[];
     #define SHADER_FILE_PATH "C:/Program Files (x86)/AntaGL/share/AntaGL/shaders/slang.spv"
 #else
     #define SHADER_FILE_PATH "/usr/local/share/AntaGL/shaders/slang.spv"
+#endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 struct queue_family_indices {
@@ -99,5 +103,9 @@ bool vulkan_create_index_buffer(vulkan_context_t context, object_t object, uint1
 
 void vulkan_update_proj(vulkan_context_t context, camera_t camera);
 void vulkan_update_view(vulkan_context_t context, camera_t camera);
+
+#ifdef __cplusplus
+    }
+#endif
 
 #endif

@@ -18,7 +18,11 @@
 
     #define VK_USE_PLATFORM_WAYLAND_KHR
 
-    #include "window.h"
+    #include "../window.h"
+
+    #ifdef __cplusplus
+    extern "C" {
+    #endif
 
 typedef struct wayland_context {
     window_t user_window;
@@ -66,5 +70,9 @@ bool init_wayland(wayland_context_t context, window_t window);
 bool end_wayland(wayland_context_t context);
 
 bool poll_events_wayland(wayland_context_t context);
+
+#ifdef __cplusplus
+    }
+#endif
 
 #endif

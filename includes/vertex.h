@@ -5,6 +5,10 @@
     #include <cglm/cglm.h>
     #include <stddef.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * @struct vertex
  * @brief Structure representing a vertex
@@ -37,5 +41,9 @@ void vertex_get_binding_description(uint32_t *vertex_binding_descriptions_count,
  * @param vertex_attribute_descriptions Pointer to an allocated array of `vertex_attribute_descriptions_count` * sizeof(VkVertexInputAttributeDescription) where the input attribute descriptions will be stored
  */
 void vertex_get_attribute_description(uint32_t *vertex_attribute_descriptions_count, VkVertexInputAttributeDescription *vertex_attribute_descriptions);
+
+#ifdef __cplusplus
+    }
+#endif
 
 #endif

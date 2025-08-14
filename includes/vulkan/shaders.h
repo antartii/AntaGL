@@ -4,6 +4,10 @@
 #include <stdalign.h>
 #include <cglm/cglm.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct uniform_buffer {
     alignas(16) mat4 view;
     alignas(16) mat4 proj;
@@ -12,5 +16,9 @@ struct uniform_buffer {
 struct push_constant {
     alignas(16) mat4 model;
 };
+
+#ifdef __cplusplus
+    }
+#endif
 
 #endif
