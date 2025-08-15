@@ -3,5 +3,6 @@
 
 #include "engine.h"
 #include "object.h"
+#include "scene_manager.h"
 
 #endif

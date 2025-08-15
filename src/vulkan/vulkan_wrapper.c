@@ -811,7 +811,7 @@ static void vulkan_record_command_buffer(vulkan_context_t context, object_t *obj
 
     vkCmdBindDescriptorSets(context->command_buffers[context->current_frame], VK_PIPELINE_BIND_POINT_GRAPHICS, context->pipeline_layout, 0, 1, &(context->descriptor_sets[context->current_frame]), 0, NULL);
 
-    for (uint32_t i = 0; i < objects_count; ++i) {
+    for (ssize_t i = (ssize_t) objects_count - 1; i >= 0; --i) {
         VkDeviceSize offset = 0;
         vkCmdBindVertexBuffers(context->command_buffers[context->current_frame], 0, 1, &(objects[i]->vertex_buffer), &offset);
         vkCmdBindIndexBuffer(context->command_buffers[context->current_frame], objects[i]->index_buffer, offset, VK_INDEX_TYPE_UINT16);
